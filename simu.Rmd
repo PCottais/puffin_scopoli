@@ -1,0 +1,33 @@
+---
+title: "Animal movement simulation"
+author: "Pierre Cottais & An Hoàng"
+date: "30/11/2021"
+output: 
+  pdf_document: 
+    extra_dependencies: ["float"]
+    toc: yes
+    number_sections: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T,
+                      results = "hide")
+```
+
+# Generating individual animal step lengths data (utilization distribution)
+
+Lengths generated from a gamma distribution
+
+$$g(l^{\prime}_{t,i}|b_1,b_2) = \frac{1}{\Gamma(b_1).b1^{b2}} . l_{t,i}^{\prime b_1-1}. e^{-\frac{l^{\prime}_{t,i}}{b_2}}$$
+
+```{r}
+b1 <- 10 ; b2 <- 10
+g <- rgamma(n = 100, scale = b1, shape = b2)
+```
+
+Dealing with turning angles
+
+
+
+
+# Defining
