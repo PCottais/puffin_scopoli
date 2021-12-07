@@ -1,0 +1,14 @@
+SCHEDULE
+ - practice before the day of presentation (10 days before)
+ - after one week: switch to real data
+ test : explain how mouvement is (draw graph by simulating)
+
+TO-DO LIST
+ 1rst step : simutate data and then inference (understand what's behind infernece process)
+	- verify if movements are coherent (vary number of steps,
+	check the magnitude of the animal's choice of cell (available probabilities))
+	- deal with border issues by adding 0 to "exp() grid-landscape"
+
+ 2nd step : explore Scopoli shearwaters data
+ 
+ 

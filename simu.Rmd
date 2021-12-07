@@ -48,14 +48,12 @@ lines(x, dgamma(x, scale = b1, shape = b2), col = "red")
 
 
 ```{r}
-debut <- Sys.time()
 s <- rep_len(1:3, 200000)
 L <- c(0.01, 0.05, 0.1)
 nimporte <- case_when(s == 1 ~ L[1],
                       s == 2 ~ L[2],
                       s == 3 ~ L[3])
 fin <- Sys.time()
-difftime(fin, debut)
 ```
 
 
@@ -79,8 +77,8 @@ p <- 5 #spatial unit
 #sliding window
 for (i in 1:(n-p)){
   for (j in 1:(m-p)){
-   sub <- envi[i:(i+p),j:(j+p)]
-   envi[i,j] = mean(sub)
+    sub <- envi[i:(i+p),j:(j+p)]
+    envi[i,j] = mean(sub)
   }
 }
 envi <- envi[1:(n-p),1:(m-p)]
@@ -101,7 +99,7 @@ omega <- 1
 #local habitat quality
 envi_dt <- as.data.frame(envi)
 # number of burn-in steps
-step1 <- 2*length(envi_dt)^2
+step1 <- 2*length(envi)^2
 # number of simulate steps
 step2 <- 10^5
 # # starting point 
@@ -116,6 +114,13 @@ moves <- function(steps){
   
   # starting point 
   coordinates <- which(envi_dt == max(envi_dt), arr.ind = TRUE)
+  latitude <- coordinates[1,1]
+  longitude <- coordinates[1,2]
+    
+  # probabilities of the associated kernel
+  available_probs <- envi_dt[(latitude-1):(latitude+1),
+                     (longitude-1):(longitude+1)] %>% as_vector()
+  
   # truncated redistribution kernel calculus
   
   
@@ -123,8 +128,17 @@ moves <- function(steps){
     latitude <- coordinates[i,1]
     longitude <- coordinates[i,2]
     
-    kernel <- envi_dt[(latitude-1):(latitude+1),
-                   (longitude-1):(longitude+1)]
+    # gestion des cas où l'animal touche les frontières du "paysage"
+    if (latitude==nrow(envi_dt) | longitude==ncol(envi_dt) |
+        latitude==1 | longitude==1){
+      warning(paste0('stopping the algorithm at the ',i,'th step:  
+             animal reached the border of the "landscape"'))
+      coord_dt <- as.data.frame(coordinates, row.names = FALSE)
+      return(list(coord_dt, available_probs))
+    }else{
+      kernel <- envi_dt[(latitude-1):(latitude+1),
+                     (longitude-1):(longitude+1)]
+    }
     sub <- exp(omega*kernel-mu)
     prob <- sub/sum(sub)
     prob_vect <- sub %>% as_vector()
@@ -134,10 +148,11 @@ moves <- function(steps){
     coordinates <- rbind(coordinates,
                          c(latitude+move[1], longitude+move[2]))
   }
-  as.data.frame(coordinates, row.names = FALSE)
+  coord_dt <- as.data.frame(coordinates, row.names = FALSE)
+  return(list(coord_dt, available_probs))
 }
 
-coord <- moves(1000)
+coord <- moves(10000)
 
 
 # sub <- which(envi == max(envi), arr.ind = TRUE)
@@ -172,20 +187,20 @@ lines(envi[coord$row, coord$col])
 
 # Visualising grey seal movement data
 ```{r}
-seal <- read.csv("https://www.datarepository.movebank.org/bitstream/handle/10255/move.451/Grey%20seals%20%28Halichoerus%20grypus%29%20at%20Sable%20Island%20%28data%20from%20Baker%20et%20al.%202015%29.csv?sequence=1")
+# seal <- read.csv("https://www.datarepository.movebank.org/bitstream/handle/10255/move.451/Grey%20seals%20%28Halichoerus%20grypus%29%20at%20Sable%20Island%20%28data%20from%20Baker%20et%20al.%202015%29.csv?sequence=1")
 ```
 
 ```{r}
-seal %>% 
-  mutate(timestamp = ymd_hms(timestamp)) %>% 
-  select(timestamp)
+# seal %>% 
+#   mutate(timestamp = ymd_hms(timestamp)) %>% 
+#   select(timestamp)
 ```
 
 ```{r}
-seal %>% 
-  filter(tag.local.identifier == 106705) %>% 
-  ggplot() + aes(x = location.long, location.lat) +
-  geom_point() + 
-  geom_line()
+# seal %>% 
+#   filter(tag.local.identifier == 106705) %>% 
+#   ggplot() + aes(x = location.long, location.lat) +
+#   geom_point() + 
+#   geom_line()
 ```
 
