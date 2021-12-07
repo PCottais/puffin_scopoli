@@ -14,20 +14,178 @@ knitr::opts_chunk$set(echo = T,
                       results = "hide")
 ```
 
+
+```{r packages}
+library(tidyverse)
+library(lubridate)
+library(wesanderson)
+```
+
+
+# Generating indivudual animal position data (long, lat)
+```{r}
+
+```
+
+
+
 # Generating individual animal step lengths data (utilization distribution)
 
-Lengths generated from a gamma distribution
+Probability of obtaining a sample at some distance, $l^{\prime}_{t,i}$ from the previous observed point ($l^{\prime}_{t,i} = || x^{\prime}_{t,i}-x$ is givenby the gammaPDF:
 
 $$g(l^{\prime}_{t,i}|b_1,b_2) = \frac{1}{\Gamma(b_1).b1^{b2}} . l_{t,i}^{\prime b_1-1}. e^{-\frac{l^{\prime}_{t,i}}{b_2}}$$
 
 ```{r}
 b1 <- 10 ; b2 <- 10
-g <- rgamma(n = 100, scale = b1, shape = b2)
+n <- 100
+X <- rgamma(n, scale = b1, shape = b2)
+hist(X, freq=F)
+x <- seq(30, 300, by = 0.1)
+lines(x, dgamma(x, scale = b1, shape = b2), col = "red")
 ```
 
-Dealing with turning angles
+
+
+
+```{r}
+debut <- Sys.time()
+s <- rep_len(1:3, 200000)
+L <- c(0.01, 0.05, 0.1)
+nimporte <- case_when(s == 1 ~ L[1],
+                      s == 2 ~ L[2],
+                      s == 3 ~ L[3])
+fin <- Sys.time()
+difftime(fin, debut)
+```
+
+
+```{r}
+# Environment grid ver2
+lat <- seq(-100,100, 1)
+long <- seq(-100,100, 1)
+n <- length(lat)
+m <- length(long)
+envi <- matrix(data = runif(n*m),nrow = n, ncol = m)
+colnames(envi) <- lat
+row.names(envi) <- long
+
+```
+
+
+```{r}
+#autocorection
+p <- 5 #spatial unit
+
+#sliding window
+for (i in 1:(n-p)){
+  for (j in 1:(m-p)){
+   sub <- envi[i:(i+p),j:(j+p)]
+   envi[i,j] = mean(sub)
+  }
+}
+envi <- envi[1:(n-p),1:(m-p)]
+```
+
+
+```{r}
+pal <- wes_palette(40401,name = "Zissou1", type = "continuous")
+heatmap(envi, Rowv = NA, Colv = NA, col = pal)
+```
+
+
+```{r}
+# habitat selection step
+mu <- 1.7918
+# chose moving length always || x- x(t) || = 1 
+omega <- 1 
+#local habitat quality
+envi_dt <- as.data.frame(envi)
+# number of burn-in steps
+step1 <- 2*length(envi_dt)^2
+# number of simulate steps
+step2 <- 10^5
+# # starting point 
+# bird <- which(envi == max(envi), arr.ind = TRUE)
+```
+
+
+```{r}
+moves <- function(steps){
+  # matrix of avaible movements
+  code <- cbind(rep(c(1, 0, -1), 3), rep(c(-1, 0, 1), each = 3))
+  
+  # starting point 
+  coordinates <- which(envi_dt == max(envi_dt), arr.ind = TRUE)
+  # truncated redistribution kernel calculus
+  
+  
+  for(i in 1:steps){
+    latitude <- coordinates[i,1]
+    longitude <- coordinates[i,2]
+    
+    kernel <- envi_dt[(latitude-1):(latitude+1),
+                   (longitude-1):(longitude+1)]
+    sub <- exp(omega*kernel-mu)
+    prob <- sub/sum(sub)
+    prob_vect <- sub %>% as_vector()
+    names(prob_vect) <- 1:9
+    num_cell <- which(rmultinom(1, 1, prob_vect)==1)
+    move <- code[num_cell,]
+    coordinates <- rbind(coordinates,
+                         c(latitude+move[1], longitude+move[2]))
+  }
+  as.data.frame(coordinates, row.names = FALSE)
+}
+
+coord <- moves(1000)
+
+
+# sub <- which(envi == max(envi), arr.ind = TRUE)
+# sub <- exp(omega*sub-mu)
+# prob <- sub/sum(sub)
+# prob_vect <- envi[1:3, 1:3] %>% as.data.frame() %>% as_vector()
+# names(prob_vect) <- 1:9
+# num_cell <- which(rmultinom(1, 1, prob_vect)==1) ; num_cell
+```
+
+
+```{r}
+heatmap(envi, Rowv = NA, Colv = NA, col = pal)
+lines(envi[coord$row, coord$col])
+```
+
+
+
+```{r}
+
+```
 
 
 
 
-# Defining
+
+
+
+
+
+
+
+# Visualising grey seal movement data
+```{r}
+seal <- read.csv("https://www.datarepository.movebank.org/bitstream/handle/10255/move.451/Grey%20seals%20%28Halichoerus%20grypus%29%20at%20Sable%20Island%20%28data%20from%20Baker%20et%20al.%202015%29.csv?sequence=1")
+```
+
+```{r}
+seal %>% 
+  mutate(timestamp = ymd_hms(timestamp)) %>% 
+  select(timestamp)
+```
+
+```{r}
+seal %>% 
+  filter(tag.local.identifier == 106705) %>% 
+  ggplot() + aes(x = location.long, location.lat) +
+  geom_point() + 
+  geom_line()
+```
+
