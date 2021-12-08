@@ -130,6 +130,9 @@ moves <- function(steps){
   # truncated redistribution kernel calculus
   prob_avail <- kernel/sum(kernel)
   prob_avail <- prob_avail %>% as_vector()
+  if (length(prob_avail) != 9){
+    return(kernel)
+  }
   names(prob_avail) <- 1:9
   num_cell <- which(rmultinom(1, 1, prob_avail)==1)
   move <- code[num_cell,]
@@ -138,6 +141,7 @@ moves <- function(steps){
   list_avail <- list(prob_avail, num_cell)
   
   for(i in 2:steps){
+    print(dim(kernel))
     latitude <- coordinates[i,1]
     longitude <- coordinates[i,2]
     
@@ -156,6 +160,9 @@ moves <- function(steps){
     # sub <- exp(omega*kernel-mu)  # done earlier outside the function
     prob_avail <- kernel/sum(kernel)
     prob_avail <- prob_avail %>% as_vector()
+    if (length(prob_avail) != 9){
+    return(kernel)
+    }
     names(prob_avail) <- 1:9 
     num_cell <- which(rmultinom(1, 1, prob_avail)==1)
     move <- code[num_cell,]
@@ -171,11 +178,17 @@ moves <- function(steps){
 
 
 ```{r}
-res <- moves(10000)
+res <- moves(5000)
+```
+
+
+```{r}
 coord <- res[[1]]
 prob <- res[[2]]
 
 hist(prob[[1]])
+
+print(nrow(coord))
 
 # sub <- which(envi == max(envi), arr.ind = TRUE)
 # sub <- exp(omega*sub-mu)
