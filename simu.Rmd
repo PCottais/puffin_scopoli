@@ -28,7 +28,7 @@ Probability of obtaining a sample at some distance, $l^{\prime}_{t,i}$ from the 
 
 $$g(l^{\prime}_{t,i}|b_1,b_2) = \frac{1}{\Gamma(b_1).b1^{b2}} . l_{t,i}^{\prime b_1-1}. e^{-\frac{l^{\prime}_{t,i}}{b_2}}$$
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 b1 <- 10 ; b2 <- 10
 n <- 100
 X <- rgamma(n, scale = b1, shape = b2)
@@ -40,7 +40,7 @@ lines(x, dgamma(x, scale = b1, shape = b2), col = "red")
 
 
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 s <- rep_len(1:3, 200000)
 L <- c(0.01, 0.05, 0.1)
 nimporte <- case_when(s == 1 ~ L[1],
@@ -58,8 +58,7 @@ n <- length(lat)
 m <- length(long)
 envi <- matrix(data = runif(n*m),nrow = n, ncol = m)
 colnames(envi) <- lat
-row.names(envi) <- long
-
+rownames(envi) <- long
 ```
 
 
@@ -89,8 +88,7 @@ heatmap(envi, Rowv = NA, Colv = NA, col = pal)
 mu <- 1.7918
 # chose moving length always || x- x(t) || = 1 
 omega <- 1 
-# #local habitat quality
-envi_dt <- as.data.frame(envi)
+#local habitat quality
 
 # apply truncated redistribution calculus kernel to the whole grid-landscape
 envi_exp <- exp(omega*envi-mu)
@@ -126,8 +124,8 @@ moves <- function(steps){
   code <- cbind(rep(c(-1, 0, 1), 3), rep(c(-1, 0, 1), each = 3))
   
   # starting point (deterministic)
-  # coordinates[1,] <- which(envi_exp == max(envi_exp), arr.ind = TRUE)
-  coordinates[1,] <- c(2, 197)
+  coordinates[1,] <- which(envi_exp == max(envi_exp), arr.ind = TRUE)
+  # coordinates[1,] <- c(2, 197)
   latitude <- coordinates[1,1]
   longitude <- coordinates[1,2]
   prob_avail[1,] <- c(0, 0, 0, 0, 1, 0, 0, 0, 0)
@@ -158,7 +156,8 @@ moves <- function(steps){
 
 
 ```{r}
-res <- moves(100)
+nb_steps <- 5000
+res <- moves(nb_steps)
 coord <- res[[1]]
 prob <- res[[2]]
 
@@ -171,18 +170,44 @@ hist(prob[[1]])
 
 
 ```{r}
-heatmap(envi, Rowv = NA, Colv = NA, col = pal)
-lines(envi_exp[coord$row, coord$col], lwd = 0.2)
+heatmap(envi, Rowv = NA, Colv = NA, col = pal, cexRow = 0.8, cexCol = 0.8,
+        margins = c(2, 1))
+lines(envi[coord$row-1, coord$col-1], lwd = 0.2)
 # points(envi_exp[coord$row, coord$col], lwd = 0.1, pch = 3, cex = 0.2)
 ```
 
-
-
 ```{r}
-
+head(coord)
+tail(coord)
 ```
 
 
+Avec `ggplot2`...
+```{r}
+envi_dt <- cbind(rep(2:197, times = 196),
+                 rep(2:197, times = rep(196, 196)),
+                 c(envi)) %>% as.data.frame()
+
+colnames(envi_dt) <- c("lat", "long", "resource")
+
+
+p_move <- envi_dt %>% 
+  ggplot() + geom_tile(aes(x = long, y = lat, fill = resource)) +
+  scale_fill_gradientn(colours = pal) +
+  geom_path(data = coord, aes(x = row, y = col)) ; p_move
+
+# png("figures/moves.png",width=9,height=6.5,units="in",res=300)
+# par(omi=c(0.65,0.25,0.75,0.75),mai=c(0.3,2,0.35,0),mgp=c(3,3,0), las=1)
+# p_move
+# dev.off()
+```
+
+
+<!-- \begin{figure}[H] -->
+<!--   \centering -->
+<!--   \fbox{\includegraphics[width=120mm]{figures/moves.png}} -->
+<!--   \caption{Movement simulations (`r nb_steps` steps)} -->
+<!-- \end{figure} -->
 
 
 
