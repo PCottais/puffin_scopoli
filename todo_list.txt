@@ -8,6 +8,7 @@ TO-DO LIST
 	- verify if movements are coherent (vary number of steps,
 	check the magnitude of the animal's choice of cell (available probabilities))
 	- deal with border issues by adding 0 to "exp() grid-landscape"
+	- include 
 
  2nd step : explore Scopoli shearwaters data
  
