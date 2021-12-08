@@ -104,7 +104,7 @@ envi_exp <- cbind(rep(0, times = nrow(envi_exp)),
 envi_exp <- rbind(rep(0, times = ncol(envi_exp)),
                   envi_exp,
                   rep(0, times = ncol(envi_exp)))
-envi_exp <- as.data.frame(envi_exp)
+# envi_exp <- as.data.frame(envi_exp)
 
 # number of burn-in steps
 step1 <- 2*length(envi)^2
@@ -131,44 +131,22 @@ moves <- function(steps){
   longitude <- coordinates[1,2]
   prob_avail[1,] <- c(0, 0, 0, 0, 1, 0, 0, 0, 0)
   num_cell[1] <- 5
-  
-  # first step
-  
-  # # truncated redistribution kernel calculus
-  # probs <- kernel/sum(kernel)
-  # prob_avail[2,] <- probs %>% as_vector()
-  # 
-  # num_cell[2] <- which(rmultinom(1, 1, prob_avail[2,])==1)
-  # move <- code[num_cell[2],]
-  # coordinates[2,] <- c(latitude+move[1], longitude+move[2])
-  # # list_avail <- list(prob_avail, num_cell)
+
   
   for(i in 1:steps){
     # print(dim(kernel))
     latitude <- coordinates[i,1]
     longitude <- coordinates[i,2]
     
-    # # dealing with "out of bounds" steps
-    # if (latitude==nrow(envi_dt) | longitude==ncol(envi_dt) |
-    #     latitude==1 | longitude==1){
-    #   warning(paste0('stopping the algorithm at the ',i,'th step:  
-    #          animal reached the border of the "landscape"'))
-    #   coord_dt <- as.data.frame(coordinates, row.names = FALSE)
-    #   return(list(coord_dt, list_avail))
-    # }else{
     kernel <- envi_exp[(latitude-1):(latitude+1),
                      (longitude-1):(longitude+1)]
-    # }
-    # truncated redistribution kernel calculus
-    # sub <- exp(omega*kernel-mu)  # done earlier outside the function
+
     probs <- kernel/sum(kernel)
     prob_avail[i+1,] <- probs %>% as_vector()
 
     num_cell[i+1] <- which(rmultinom(1, 1, prob_avail[i+1,])==1)
     move <- code[num_cell[i+1],]
     coordinates[i+1,] <- c(latitude+move[1], longitude+move[2])
-    # list_avail[[1]] <- rbind(list_avail[[1]], prob_avail)
-    # list_avail[[2]] <- rbind(list_avail[[2]], num_cell)
   }
   coord_dt <- as.data.frame(coordinates, row.names = FALSE)
   colnames(coord_dt) <- c("row", "col")
@@ -179,22 +157,15 @@ moves <- function(steps){
 
 
 ```{r}
-res <- moves(5000)
+res <- moves(4000)
+coord <- res[[1]]
+prob <- res[[2]]
+
 ```
 
 
 ```{r}
-coord <- res[[1]]
-prob <- res[[2]]
-
 hist(prob[[1]])
-
-# sub <- which(envi == max(envi), arr.ind = TRUE)
-# sub <- exp(omega*sub-mu)
-# prob <- sub/sum(sub)
-# prob_vect <- envi[1:3, 1:3] %>% as.data.frame() %>% as_vector()
-# names(prob_vect) <- 1:9
-# num_cell <- which(rmultinom(1, 1, prob_vect)==1) ; num_cell
 ```
 
 
