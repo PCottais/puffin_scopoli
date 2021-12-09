@@ -51,7 +51,7 @@ fin <- Sys.time()
 
 
 ```{r}
-# Environment grid ver2
+# Environment grid ver2 (used later in moves  () function)
 lat <- seq(-100,100, 1)
 long <- seq(-100,100, 1)
 n <- length(lat)
@@ -62,48 +62,34 @@ rownames(envi) <- long
 ```
 
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 #autocorection
-p <- 5 #spatial unit
+p <- c(5, 15, 50) #spatial unit
+env_list <- list(0, 0, 0)
+pal <- wes_palette(40401, name = "Zissou1", type = "continuous")
 
-#sliding window
-for (i in 1:(n-p)){
-  for (j in 1:(m-p)){
-    sub <- envi[i:(i+p),j:(j+p)]
-    envi[i,j] = mean(sub)
+for (k in p){
+  new_env <- envi
+  #sliding window
+  for (i in 1:(n-k)){
+    for (j in 1:(m-k)){
+      sub <- envi[i:(i+k),j:(j+k)]
+      new_env[i,j] = mean(sub)
+    }
   }
+  env_rho <- new_env[1:(n-k),1:(m-k)]
+  env_list[[which(p==k)]] <- env_rho
+  heatmap(env_rho, Rowv = NA, Colv = NA, col = pal,
+          main = paste("rho=", k))
 }
-envi <- envi[1:(n-p),1:(m-p)]
 ```
 
 
-```{r}
-pal <- wes_palette(40401,name = "Zissou1", type = "continuous")
-heatmap(envi, Rowv = NA, Colv = NA, col = pal)
-```
-
-
-```{r}
+```{r eval=FALSE, include=FALSE}
 # habitat selection step
 mu <- 1.7918
 # chose moving length always || x- x(t) || = 1 
-omega <- 1 
-#local habitat quality
-
-# apply truncated redistribution calculus kernel to the whole grid-landscape
-envi_exp <- exp(omega*envi-mu)
-
-# adding two null columns at the "borders"
-envi_exp <- cbind(rep(0, times = nrow(envi_exp)),
-                  envi_exp,
-                  rep(0, times = nrow(envi_exp)))
-# adding two null rows at the "borders"
-# adding two null columns at the "borders"
-envi_exp <- rbind(rep(0, times = ncol(envi_exp)),
-                  envi_exp,
-                  rep(0, times = ncol(envi_exp)))
-# envi_exp <- as.data.frame(envi_exp)
-
+omega <- 1
 # number of burn-in steps
 step1 <- 2*length(envi)^2
 # number of simulate steps
@@ -113,36 +99,132 @@ step2 <- 10^5
 ```
 
 
+```{r eval=FALSE, include=FALSE}
+# moves <- function(steps, rho = c(5, 15, 50), mu = 1.7918, omega = 1){
+#   
+#   ###################################################
+#   # building smoothed gird-landscape depending on rhô
+#   env_list <- list(
+#     list(0, 0, 0),
+#     list(0, 0, 0))
+#   for (k in rho){
+#     new_env <- envi
+#     # sliding window
+#     for (i in 1:(n-k)){
+#       for (j in 1:(m-k)){
+#         sub <- envi[i:(i+k),j:(j+k)]
+#         new_env[i,j] = mean(sub)
+#       }
+#     }
+#     env_rho <- new_env[1:(n-k),1:(m-k)]
+#     # apply truncated redistribution calculus kernel to the whole grid-landscape
+#     env_exp <- exp(omega*env_rho-mu)
+#     # adding two null columns at the "borders"
+#     env_exp <- cbind(rep(0, times = nrow(env_exp)),
+#                       env_exp,
+#                       rep(0, times = nrow(env_exp)))
+#     # adding two null rows at the "borders"
+#     # adding two null columns at the "borders"
+#     env_exp <- rbind(rep(0, times = ncol(env_exp)),
+#                       env_exp,
+#                       rep(0, times = ncol(env_exp)))
+#     
+#     env_list[[1]][[which(rho==k)]] <- env_rho
+#     env_list[[2]][[which(rho==k)]] <- env_exp
+#   }
+#   
+#   ###################################################
+#   # building movements (from coordinates) of one individual
+#   # vectors to be returned in a list
+#   coordinates <- cbind(rep(0, steps+1), rep(0, steps+1))
+#   prob_avail <- matrix(0, nrow = steps+1, ncol = 9)
+#   num_cell <- rep(0, steps+1)
+#   # matrix of avaible movements
+#   code <- cbind(rep(c(-1, 0, 1), 3), rep(c(-1, 0, 1), each = 3))
+#   # starting point (deterministic)
+#   coordinates[1,] <- which(env_exp == max(env_exp), arr.ind = TRUE)
+#   # coordinates[1,] <- c(2, 197)
+#   latitude <- coordinates[1,1]
+#   longitude <- coordinates[1,2]
+#   prob_avail[1,] <- c(0, 0, 0, 0, 1, 0, 0, 0, 0)
+#   num_cell[1] <- 5
+#   
+#   for(i in 1:steps){
+#     # print(dim(kernel))
+#     latitude <- coordinates[i,1]
+#     longitude <- coordinates[i,2]
+#     kernel <- env_exp[(latitude-1):(latitude+1),
+#                        (longitude-1):(longitude+1)]
+#     probs <- kernel/sum(kernel)
+#     prob_avail[i+1,] <- c(probs)
+#     num_cell[i+1] <- which(rmultinom(1, 1, prob_avail[i+1,])==1)
+#     move <- code[num_cell[i+1],]
+#     coordinates[i+1,] <- c(latitude+move[1], longitude+move[2])
+#   }
+#   coord_dt <- as.data.frame(coordinates, row.names = FALSE)
+#   colnames(coord_dt) <- c("row", "col")
+#   list_avail <- list(prob_avail, num_cell)
+#   ###################################################
+#   
+#   return(list(env_list, coord_dt, list_avail))
+# }
+```
+
 ```{r}
-moves <- function(steps){
-  # declare vectors to be returned in a list
+moves <- function(steps, rho = 5, mu = 1.7918, omega = 1){
+  
+  ###################################################
+  # building smoothed gird-landscape depending on rhô
+  env_list <- list(0, 0, 0)
+    new_env <- envi
+    # sliding window
+    for (i in 1:(n-rho)){
+      for (j in 1:(m-rho)){
+        sub <- envi[i:(i+rho),j:(j+rho)]
+        new_env[i,j] = mean(sub)
+      }
+    }
+    env_rho <- new_env[1:(n-rho),1:(m-rho)]
+    # apply truncated redistribution calculus kernel to the whole grid-landscape
+    env_exp <- exp(omega*env_rho-mu)
+    # adding two null columns at the "borders"
+    env_exp <- cbind(rep(0, times = nrow(env_exp)),
+                      env_exp,
+                      rep(0, times = nrow(env_exp)))
+    # adding two null rows at the "borders"
+    # adding two null columns at the "borders"
+    env_exp <- rbind(rep(0, times = ncol(env_exp)),
+                      env_exp,
+                      rep(0, times = ncol(env_exp)))
+    
+    env_list[[1]] <- env_rho
+    env_list[[2]] <- env_exp
+    env_list[[3]] <- rho
+  
+  ###################################################
+  # building movements (from coordinates) of one individual
+  # vectors to be returned in a list
   coordinates <- cbind(rep(0, steps+1), rep(0, steps+1))
   prob_avail <- matrix(0, nrow = steps+1, ncol = 9)
   num_cell <- rep(0, steps+1)
-  
   # matrix of avaible movements
   code <- cbind(rep(c(-1, 0, 1), 3), rep(c(-1, 0, 1), each = 3))
-  
   # starting point (deterministic)
-  coordinates[1,] <- which(envi_exp == max(envi_exp), arr.ind = TRUE)
+  coordinates[1,] <- which(env_exp == max(env_exp), arr.ind = TRUE)
   # coordinates[1,] <- c(2, 197)
   latitude <- coordinates[1,1]
   longitude <- coordinates[1,2]
   prob_avail[1,] <- c(0, 0, 0, 0, 1, 0, 0, 0, 0)
   num_cell[1] <- 5
-
   
   for(i in 1:steps){
     # print(dim(kernel))
     latitude <- coordinates[i,1]
     longitude <- coordinates[i,2]
-    
-    kernel <- envi_exp[(latitude-1):(latitude+1),
-                     (longitude-1):(longitude+1)]
-
+    kernel <- env_exp[(latitude-1):(latitude+1),
+                       (longitude-1):(longitude+1)]
     probs <- kernel/sum(kernel)
     prob_avail[i+1,] <- c(probs)
-
     num_cell[i+1] <- which(rmultinom(1, 1, prob_avail[i+1,])==1)
     move <- code[num_cell[i+1],]
     coordinates[i+1,] <- c(latitude+move[1], longitude+move[2])
@@ -150,33 +232,39 @@ moves <- function(steps){
   coord_dt <- as.data.frame(coordinates, row.names = FALSE)
   colnames(coord_dt) <- c("row", "col")
   list_avail <- list(prob_avail, num_cell)
-  return(list(coord_dt, list_avail))
+  ###################################################
+  
+  return(list(env_list, coord_dt, list_avail))
 }
 ```
 
 
-```{r}
-nb_steps <- 5000
-res <- moves(nb_steps)
-coord <- res[[1]]
-prob <- res[[2]]
 
+```{r}
+nb_steps <- 10000
+
+res <- moves(nb_steps, rho = 50)
+env_rho <- res[[1]][[1]]  # grid-landscape with first rhô
+env_exp <- res[[1]][[2]]  # grid-landscape with first rhô
+rho <- res[[1]][[3]]
+coord <- res[[2]]
+prob <- res[[3]]
 ```
 
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 hist(prob[[1]])
 ```
 
 
-```{r}
-heatmap(envi, Rowv = NA, Colv = NA, col = pal, cexRow = 0.8, cexCol = 0.8,
+```{r eval=FALSE, include=FALSE}
+heatmap(env_exp, Rowv = NA, Colv = NA, col = pal, cexRow = 0.8, cexCol = 0.8,
         margins = c(2, 1))
-lines(envi[coord$row-1, coord$col-1], lwd = 0.2)
+# lines(envi[coord$row-1, coord$col-1], lwd = 0.2)
 # points(envi_exp[coord$row, coord$col], lwd = 0.1, pch = 3, cex = 0.2)
 ```
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 head(coord)
 tail(coord)
 ```
@@ -184,22 +272,42 @@ tail(coord)
 
 Avec `ggplot2`...
 ```{r}
-envi_dt <- cbind(rep(2:197, times = 196),
-                 rep(2:197, times = rep(196, 196)),
-                 c(envi)) %>% as.data.frame()
+dim <- ncol(env_exp)-2
+env_dt <- cbind(rep(2:(dim+1), times = dim),
+                 rep(2:(dim+1), times = rep(dim, dim)),
+                 c(env_rho)) %>% as.data.frame()
 
-colnames(envi_dt) <- c("lat", "long", "resource")
+colnames(env_dt) <- c("lat", "long", "resource")
 
+# burn_coord <- coord[1:200000,]
+# coord <- coord[200001:nrow(coord),]
 
-p_move <- envi_dt %>% 
+# index <- as.numeric(row.names(coord))
+# samp_ind <- index%%1000==0
+# samp <- coord[samp_ind,]
+
+pal <- wes_palette(40401, name = "Zissou1", type = "continuous")
+
+p_move <- env_dt %>% 
   ggplot() + geom_tile(aes(x = long, y = lat, fill = resource)) +
   scale_fill_gradientn(colours = pal) +
-  geom_path(data = coord, aes(x = row, y = col)) ; p_move
+  geom_path(data = coord, aes(x = row, y = col)) +
+  ggtitle(label = paste("\u03c1 =", rho))
+  # geom_path(data = samp, aes(x = row, y = col))+
+  # geom_point(data = samp, aes(x = row, y = col))
+p_move
+
 
 # png("figures/moves.png",width=9,height=6.5,units="in",res=300)
 # par(omi=c(0.65,0.25,0.75,0.75),mai=c(0.3,2,0.35,0),mgp=c(3,3,0), las=1)
 # p_move
 # dev.off()
+```
+
+
+```{r}
+
+  
 ```
 
 
