@@ -241,9 +241,9 @@ moves <- function(steps, rho = 5, mu = 1.7918, omega = 1){
 
 
 ```{r}
-nb_steps <- 10000
+nb_steps <- 1000000
 
-res <- moves(nb_steps, rho = 50)
+res <- moves(nb_steps, rho = 5)
 env_rho <- res[[1]][[1]]  # grid-landscape with first rhô
 env_exp <- res[[1]][[2]]  # grid-landscape with first rhô
 rho <- res[[1]][[3]]
@@ -279,19 +279,19 @@ env_dt <- cbind(rep(2:(dim+1), times = dim),
 
 colnames(env_dt) <- c("lat", "long", "resource")
 
-# burn_coord <- coord[1:200000,]
-# coord <- coord[200001:nrow(coord),]
+burn_coord <- coord[1:200000,]
+coord <- coord[200001:nrow(coord),]
 
-# index <- as.numeric(row.names(coord))
-# samp_ind <- index%%1000==0
-# samp <- coord[samp_ind,]
+index <- as.numeric(row.names(coord))
+samp_ind <- index%%1000==0
+samp <- coord[samp_ind,]
 
 pal <- wes_palette(40401, name = "Zissou1", type = "continuous")
 
 p_move <- env_dt %>% 
   ggplot() + geom_tile(aes(x = long, y = lat, fill = resource)) +
   scale_fill_gradientn(colours = pal) +
-  geom_path(data = coord, aes(x = row, y = col)) +
+  geom_path(data = samp, aes(x = row, y = col)) +
   ggtitle(label = paste("\u03c1 =", rho))
   # geom_path(data = samp, aes(x = row, y = col))+
   # geom_point(data = samp, aes(x = row, y = col))
@@ -319,9 +319,15 @@ p_move
 
 
 
+# Use of `survival` package and its function `clogit()`
 
+```{r}
+library(survival)
+```
 
-
+```{r}
+clogit()
+```
 
 
 
