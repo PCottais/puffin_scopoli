@@ -242,13 +242,14 @@ moves <- function(steps, rho = 5, mu = 1.7918, omega = 1){
 
 ```{r}
 nb_steps <- 1000000
-visit_matrx <- matrix(0, nrow = 30, ncol = 3)
+nb_simu <- 20
+visit_matrx <- matrix(0, nrow = nb_simu, ncol = 3)
 
-for (i in 1:30){
+for (i in 1:nb_simu){
   
   print(paste("Sample #", i, sep = ""))
   
-  res <- moves(nb_steps, rho = 5)
+  res <- moves(nb_steps, rho = 10)
   env_rho <- res[[1]][[1]]  # grid-landscape with first rhô
   env_exp <- res[[1]][[2]]  # grid-landscape with first rhô
   rho <- res[[1]][[3]]
@@ -270,8 +271,8 @@ for (i in 1:30){
       include.lowest = TRUE
     ))
   
-  burn_coord <- coord[1:200000,]
-  coord <- coord[200001:nrow(coord),]
+  burn_coord <- coord[1:nb_steps*0.2,]
+  coord <- coord[(nb_steps*0.2+1):nrow(coord),]
   
   index <- as.numeric(row.names(coord))
   samp_ind <- index%%100==0
@@ -285,7 +286,9 @@ for (i in 1:30){
   
   visit_matrx[i,] <- perc_visit[[1]]
 }
-apply(visit_matrx, 2, mean)
+df_visit <- visit_matrx %>% as_tibble()
+names(df_visit) <- c("low", "med", "high")
+apply(df_visit, 2, mean)
 ```
 
 
@@ -374,10 +377,25 @@ hist(env_rho)
 
 ```{r}
 library(survival)
+str(logan)
 ```
 
 ```{r}
-# clogit()
+resp <- levels(logan$occupation)  # names of occupation levels
+n <- nrow(logan)  # number of observations
+indx <- rep(1:n, length(resp))  # repeat index for each level
+logan2 <- data.frame(logan[indx,],
+                     id = indx,
+                     tocc = factor(rep(resp, each=n)))
+logan2$case <- (logan2$occupation == logan2$tocc)
+mlog <- clogit(case ~ tocc + tocc:education + strata(id), logan2)
+summary(mlog)
+
+# predict(mlog, newdata = logan2[sample(1:nrow(logan2), 1), ])  # sampling a random row 
+rind <- sample(1:nrow(logan2), 1)
+logan2[rind, "case"]
+
+predict(mlog, newdata = logan2[rind,])
 ```
 
 
