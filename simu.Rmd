@@ -242,13 +242,50 @@ moves <- function(steps, rho = 5, mu = 1.7918, omega = 1){
 
 ```{r}
 nb_steps <- 1000000
+visit_matrx <- matrix(0, nrow = 30, ncol = 3)
 
-res <- moves(nb_steps, rho = 5)
-env_rho <- res[[1]][[1]]  # grid-landscape with first rhô
-env_exp <- res[[1]][[2]]  # grid-landscape with first rhô
-rho <- res[[1]][[3]]
-coord <- res[[2]]
-prob <- res[[3]]
+for (i in 1:30){
+  
+  print(paste("Sample #", i, sep = ""))
+  
+  res <- moves(nb_steps, rho = 5)
+  env_rho <- res[[1]][[1]]  # grid-landscape with first rhô
+  env_exp <- res[[1]][[2]]  # grid-landscape with first rhô
+  rho <- res[[1]][[3]]
+  coord <- res[[2]]
+  prob <- res[[3]]
+  dim <- ncol(env_exp)-2
+  env_dt <- cbind(rep(2:(dim+1), times = dim),
+                  rep(2:(dim+1), times = rep(dim, dim)),
+                  c(env_rho)) %>% as.data.frame()
+  
+  colnames(env_dt) <- c("lat", "long", "resource")
+  
+  env_dt <- env_dt %>% 
+    mutate(landscape = cut(
+      resource,
+      breaks = quantile(resource, probs = c(0:3/3), na.rm = TRUE),
+      # labels = c("Montant faible", "Montant moyen", "Montant fort"),
+      labels = c("low", "med", "high"),
+      include.lowest = TRUE
+    ))
+  
+  burn_coord <- coord[1:200000,]
+  coord <- coord[200001:nrow(coord),]
+  
+  index <- as.numeric(row.names(coord))
+  samp_ind <- index%%100==0
+  samp <- coord[samp_ind,]
+  
+  perc_visit <- samp %>% 
+    inner_join(env_dt, by = c("row"="lat", "col"="long")) %>% 
+    group_by(landscape) %>% 
+    summarise(Percent_visit = n()/nrow(samp)) %>% 
+    select(Percent_visit) %>% c()
+  
+  visit_matrx[i,] <- perc_visit[[1]]
+}
+apply(visit_matrx, 2, mean)
 ```
 
 
@@ -258,7 +295,7 @@ hist(prob[[1]])
 
 
 ```{r eval=FALSE, include=FALSE}
-heatmap(env_exp, Rowv = NA, Colv = NA, col = pal, cexRow = 0.8, cexCol = 0.8,
+heatmap(env_rho, Rowv = NA, Colv = NA, col = pal, cexRow = 0.8, cexCol = 0.8,
         margins = c(2, 1))
 # lines(envi[coord$row-1, coord$col-1], lwd = 0.2)
 # points(envi_exp[coord$row, coord$col], lwd = 0.1, pch = 3, cex = 0.2)
@@ -279,12 +316,26 @@ env_dt <- cbind(rep(2:(dim+1), times = dim),
 
 colnames(env_dt) <- c("lat", "long", "resource")
 
+env_dt <- env_dt %>% 
+  mutate(landscape = cut(
+    resource,
+    breaks = quantile(resource, probs = c(0:3/3), na.rm = TRUE),
+    # labels = c("Montant faible", "Montant moyen", "Montant fort"),
+    labels = c("low", "med", "high"),
+    include.lowest = TRUE
+  ))
+
 burn_coord <- coord[1:200000,]
 coord <- coord[200001:nrow(coord),]
 
 index <- as.numeric(row.names(coord))
-samp_ind <- index%%1000==0
+samp_ind <- index%%100==0
 samp <- coord[samp_ind,]
+
+samp %>% 
+  inner_join(env_dt, by = c("row"="lat", "col"="long")) %>% 
+  group_by(landscape) %>% 
+  summarise(Percent_visit = n()/nrow(samp))
 
 pal <- wes_palette(40401, name = "Zissou1", type = "continuous")
 
@@ -298,6 +349,7 @@ p_move <- env_dt %>%
 p_move
 
 
+
 # png("figures/moves.png",width=9,height=6.5,units="in",res=300)
 # par(omi=c(0.65,0.25,0.75,0.75),mai=c(0.3,2,0.35,0),mgp=c(3,3,0), las=1)
 # p_move
@@ -306,8 +358,7 @@ p_move
 
 
 ```{r}
-
-  
+hist(env_rho)
 ```
 
 
@@ -326,7 +377,7 @@ library(survival)
 ```
 
 ```{r}
-clogit()
+# clogit()
 ```
 
 
