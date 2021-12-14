@@ -418,6 +418,7 @@ str(logan)
 ```
 
 ```{r}
+data("infert")
 clogit(case ~ spontaneous + induced + strata(stratum), data=infert)
 # }
 # NOT RUN {
@@ -500,7 +501,7 @@ point <- samp[1,]
 esti.l$hx[1] <- env_rho[point$row,point$col]
 
 
-# length match for each step 
+# length match for each step
 for (i in 2:n){
   #estimate h
   point <- samp[i,]
@@ -530,7 +531,6 @@ for (i in 2:n){
 ```{r}
 #number of match case
 table(esti.l$match) # balance
-
 ```
 
 ```{r}
