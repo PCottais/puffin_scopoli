@@ -233,8 +233,11 @@ moves <- function(steps, rho = 5, mu = 1.7918, omega = 1){
   colnames(coord_dt) <- c("row", "col")
   list_avail <- list(prob_avail, num_cell)
   ###################################################
-  
-  return(list(env_list, coord_dt, list_avail))
+  res <- list(env_list, coord_dt, list_avail)
+  names(res) <- c("envi", "coord", "probs")
+  names(res$envi) <- c("env_rho", "env_exp", "rho")
+  names(res$probs) <- c("available", "chosen")
+  return(res)
 }
 ```
 
@@ -243,11 +246,14 @@ moves <- function(steps, rho = 5, mu = 1.7918, omega = 1){
 ```{r}
 nb_steps <- 1000000
 res <- moves(nb_steps, rho = 10)
-env_rho <- res[[1]][[1]]  # grid-landscape with rhô transformation
-env_exp <- res[[1]][[2]]  # grid-landscape with exp transformation
-rho <- res[[1]][[3]]
-coord <- res[[2]]
-prob <- res[[3]]
+env_rho <- res$envi$env_rho  # grid-landscape with rhô transformation
+env_exp <- res$envi$env_exp  # grid-landscape with exp transformation
+rho <- res$envi$rho  # rhô value used in smoothing grid
+coord <- res$coord  # coordinates of used cells
+probs <- res$probs  # list of :
+#                     - vector of available probabilities
+#                     - rank of the chosen probability in the vector
+
 dim <- ncol(env_exp)-2
 env_dt <- cbind(rep(2:(dim+1), times = dim),
                 rep(2:(dim+1), times = rep(dim, dim)),
@@ -317,7 +323,7 @@ env_dt <- env_dt %>%
 
 
 ```{r eval=FALSE, include=FALSE}
-hist(prob[[1]])
+hist(probs$available)
 ```
 
 
@@ -332,6 +338,7 @@ heatmap(env_rho, Rowv = NA, Colv = NA, col = pal, cexRow = 0.8, cexCol = 0.8,
 head(coord)
 tail(coord)
 ```
+
 
 
 Avec `ggplot2`...
@@ -442,17 +449,17 @@ clogit(case ~ spontaneous + induced + strata(stratum), data=infert)
 resp <- levels(logan$occupation)
 n <- nrow(logan)
 indx <- rep(1:n, length(resp))
-logan2 %>% 
-  mutate(tocc_num = case_when(case==TRUE~1,
-                              case==FALSE~0)) %>% 
-  group_by(id) %>% 
-  summarise(sum(tocc_num, na.rm = TRUE)) %>% 
-  head()
 logan2 <- data.frame(logan[indx,],
                      id = indx,
                      tocc = factor(rep(resp, 
                                        each=n)))
 logan2$case <- (logan2$occupation == logan2$tocc)
+# logan2 %>% 
+#   mutate(tocc_num = case_when(case==TRUE~1,
+#                               case==FALSE~0)) %>% 
+#   group_by(id) %>% 
+#   summarise(sum(tocc_num, na.rm = TRUE)) %>% 
+#   head()
 clogit(case ~ tocc + tocc:education + strata(id), logan2)
 # }
 
@@ -486,6 +493,7 @@ angle <- as.data.frame(angle)
 hist(angle[,1])
 
 ```
+
 ```{r}
 n <- length(samp$row)-1 # number of steps
 s <- 15                # number of spatial points estimate
@@ -534,11 +542,13 @@ for (i in 2:n){
 }
 ```
 
+
 ```{r}
 #number of match case
 table(esti.l$match) # balance
 
 ```
+
 ```{r}
 #add some variables 
 esti.l$ln_dist <- log(dist) #ln(dist)
