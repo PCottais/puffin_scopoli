@@ -411,26 +411,6 @@ str(logan)
 ```
 
 ```{r}
-resp <- levels(logan$occupation)  # names of occupation levels
-n <- nrow(logan)  # number of observations
-indx <- rep(1:n, length(resp))  # repeat index for each level
-logan2 <- data.frame(logan[indx,],
-                     id = indx,
-                     tocc = factor(rep(resp, each=n)))
-logan2$case <- (logan2$occupation == logan2$tocc)
-mlog <- clogit(case ~ tocc + tocc:education + strata(id), logan2)
-summary(mlog)
-
-# predict(mlog, newdata = logan2[sample(1:nrow(logan2), 1), ])  # sampling a random row 
-rind <- sample(1:nrow(logan2), 1)
-logan2[rind, "case"]
-
-predict(mlog, newdata = logan2[rind,])
-```
-
-
-
-```{r}
 clogit(case ~ spontaneous + induced + strata(stratum), data=infert)
 # }
 # NOT RUN {
@@ -442,12 +422,12 @@ clogit(case ~ spontaneous + induced + strata(stratum), data=infert)
 resp <- levels(logan$occupation)
 n <- nrow(logan)
 indx <- rep(1:n, length(resp))
-logan2 %>% 
-  mutate(tocc_num = case_when(case==TRUE~1,
-                              case==FALSE~0)) %>% 
-  group_by(id) %>% 
-  summarise(sum(tocc_num, na.rm = TRUE)) %>% 
-  head()
+# logan2 %>% 
+#   mutate(tocc_num = case_when(case==TRUE~1,
+#                               case==FALSE~0)) %>% 
+#   group_by(id) %>% 
+#   summarise(sum(tocc_num, na.rm = TRUE)) %>% 
+#   head()
 logan2 <- data.frame(logan[indx,],
                      id = indx,
                      tocc = factor(rep(resp, 
@@ -488,11 +468,11 @@ hist(angle[,1])
 ```
 ```{r}
 n <- length(samp$row)-1 # number of steps
-s <- 15                # number of spatial points estimate
+s <- 15                # number of spatial points estimate at each step
 
 # for loop
-max <- max(envi)
-min <- min(envi)
+max <- max(env_rho)
+min <- min(env_rho)
 delta <- max - min 
 
 #data frame for clogit function
@@ -503,20 +483,23 @@ esti.l$h <- rep(0,n)
 esti.l$match <- rep(0,n)
 esti.l$hx <- rep(0,n)
 
+# match coordinate with env_rho
+samp <- samp-1
+
 # give first h value
 point <- samp[1,]
-esti.l$hx[1] <- envi[point$row,point$col]
+esti.l$hx[1] <- env_rho[point$row,point$col]
 
 
 # length match for each step 
 for (i in 2:n){
   #estimate h
   point <- samp[i,]
-  esti.l$h[i] <- envi[point$row,point$col]
+  esti.l$h[i] <- env_rho[point$row,point$col]
   
   #save h 
   if (i %in% 2:(n-1)){
-  esti.l$hx[i+1] <- envi[point$row,point$col]
+  esti.l$hx[i+1] <- esti.l$h[i]
   }
   
   #estimate gamma distribution 
@@ -539,6 +522,7 @@ for (i in 2:n){
 table(esti.l$match) # balance
 
 ```
+
 ```{r}
 #add some variables 
 esti.l$ln_dist <- log(dist) #ln(dist)
