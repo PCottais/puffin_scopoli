@@ -522,7 +522,7 @@ for (i in 2:n){
   #estimate gamma distribution 
   k <- 2*(1+(max - esti.l$h[i])/delta)
   q <- 5/(1+(esti.l$h[i] - min)/delta)
-  
+
   length <- round(rgamma(s, shape = k, scale = q))
   use_length <- dist[i]
   
