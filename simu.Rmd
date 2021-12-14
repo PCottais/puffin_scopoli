@@ -479,41 +479,36 @@ hist(angle[,1])
 n <- length(samp$row)-1 # number of steps
 s <- 15                # number of spatial points estimate at each step
 
+# match coordinate with env_rho
+samp <- samp-1
+
 # for loop
 max <- max(env_rho)
 min <- min(env_rho)
 delta <- max - min 
 
+# subset environment habitat
+h <- rep(0,n+1)
+col <- samp$col
+row <- samp$row
+for (i in 1:(n+1)){
+  h[i] <- env_rho[row[i],col[i]]
+}
+
+
 #data frame for clogit function
 esti.l <- as.data.frame(dist) #distance
 colnames(esti.l) <- "dist"
-esti.l$ID <- seq(1:n) #step ID
-esti.l$h <- rep(0,n)
+esti.l$ID <-  paste(samp$row,samp$col, sep = "")[-1]#point ID
+esti.l$h_end <- h[-1]
 esti.l$match <- rep(0,n)
-esti.l$hx <- rep(0,n)
-
-# match coordinate with env_rho
-samp <- samp-1
-
-# give first h value
-point <- samp[1,]
-esti.l$hx[1] <- env_rho[point$row,point$col]
-
+esti.l$h_start <- h[-length(h)]
 
 # length match for each step 
-for (i in 2:n){
-  #estimate h
-  point <- samp[i,]
-  esti.l$h[i] <- env_rho[point$row,point$col]
-  
-  #save h 
-  if (i %in% 2:(n-1)){
-  esti.l$hx[i+1] <- esti.l$h[i]
-  }
-  
+for (i in 1:n){
   #estimate gamma distribution 
-  k <- 2*(1+(max - esti.l$h[i])/delta)
-  q <- 5/(1+(esti.l$h[i] - min)/delta)
+  k <- 2*(1+(max - esti.l$h_start[i])/delta)
+  q <- 5/(1+(esti.l$h_start[i] - min)/delta)
 
   length <- round(rgamma(s, shape = k, scale = q))
   use_length <- dist[i]
@@ -530,18 +525,16 @@ for (i in 2:n){
 ```{r}
 #number of match case
 table(esti.l$match) # balance
-
 ```
 
 ```{r}
 #add some variables 
 esti.l$ln_dist <- log(dist) #ln(dist)
-esti.l$lh <- esti.l$dist*esti.l$hx  # dist * h at previous step
-esti.l$ln_lh <- esti.l$ln_dist*esti.l$hx #ln(dist) * h at previous step
+esti.l$lh <- esti.l$dist*esti.l$h_start  # dist * h at previous step
+esti.l$ln_lh <- esti.l$ln_dist*esti.l$h_start #ln(dist) * h at previous step
 
 #remove step where dist = 0
 esti <- subset(esti.l, dist > 0)
 
-clogit(match ~ h + dist + ln_dist + lh + ln_lh + strata(ID), data=esti)
-
+clogit(match ~ h_end + dist + ln_dist + lh + ln_lh + strata(ID), data=esti)
 ```
