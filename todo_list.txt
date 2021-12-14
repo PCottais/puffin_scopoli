@@ -9,7 +9,11 @@ TO-DO LIST
 	check the magnitude of the animal's choice of cell (available probabilities))
 	- deal with border issues by adding 0 to "exp() grid-landscape"
 	- include Beta
+=> Done
 
- 2nd step : explore Scopoli shearwaters data
+ 2nd step : Check how to use clogit function in amt package
+ 	  - Recreate the simulation and run clogit again with available steps as 0, used step as 1
+	  - Read the new document
+ 3rd step: explore Scopoli shearwaters data
  
  
