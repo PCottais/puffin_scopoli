@@ -455,7 +455,7 @@ for (i in 1:(length(samp$row)-1)){
   dist[i] = sqrt(sum((samp[i+1,]-samp[i,])^2))
 }
 
-dist <- round(dist)
+dist <- round(dist,1)
 
 hist(dist)
 ```
@@ -477,7 +477,7 @@ hist(angle[,1])
 
 ```{r}
 n <- length(samp$row)-1 # number of steps
-s <- 15                # number of spatial points estimate at each step
+s <- 20                # number of spatial points estimate at each step
 
 # match coordinate with env_rho
 samp <- samp-1
@@ -510,7 +510,7 @@ for (i in 1:n){
   k <- 2*(1+(max - esti.l$h_start[i])/delta)
   q <- 5/(1+(esti.l$h_start[i] - min)/delta)
 
-  length <- round(rgamma(s, shape = k, scale = q))
+  length <- round(rgamma(s, shape = k, scale = q),1)
   use_length <- dist[i]
   
   if(sum(length == use_length) > 0){
