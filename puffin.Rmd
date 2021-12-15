@@ -1,0 +1,56 @@
+---
+title: "Scopoli’s shearwaters movements"
+author: "Pierre Cottais & An Hoàng"
+date: "15/12/2021"
+output: 
+  pdf_document: 
+    extra_dependencies: ["float"]
+    toc: yes
+    number_sections: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T,
+                      results = "hide")
+```
+
+
+```{r packages, include=FALSE}
+library(tidyverse)
+library(ggmap)
+library(lubridate)
+library(wesanderson)
+library(survival)
+library(amt)
+library(stargazer)
+```
+
+# Data exploration
+
+```{r import, include=FALSE}
+load("CALDIO_MPE_2021/generalisation datasets/grid_oceano_2011.Rdata")
+load("CALDIO_MPE_2021/generalisation datasets/grid_oceano_Date_2011.Rdata")
+```
+
+
+## Data set
+
+```{r echo=FALSE, results='asis'}
+df.day1 <- grid_oceano[[1]] %>% as_tibble()
+tab_extract <- rbind(head(df.day1, 5), tail(df.day1, 5))
+stargazer(tab_extract[, 1:7], type = "latex",
+          title = "Extrait du jeu de données du 28 juin 2011*",
+          notes = "*Six premières colonnes sur les 41 colonnes du jeu de données",
+          summary = FALSE)
+```
+
+
+## Data visualisation
+
+```{r}
+bbox <- 
+map.day1 <- get_openstreetmap()
+df.day1 %>% ggmap() +
+  geom_tile
+```
+

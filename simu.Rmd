@@ -19,6 +19,8 @@ knitr::opts_chunk$set(echo = T,
 library(tidyverse)
 library(lubridate)
 library(wesanderson)
+library(survival)
+library(stargazer)
 ```
 
 
@@ -89,7 +91,7 @@ for (k in p){
 # habitat selection step
 mu <- 1.7918
 # chose moving length always || x- x(t) || = 1 
-omega <- 1
+omega <- 2
 # number of burn-in steps
 step1 <- 2*length(envi)^2
 # number of simulate steps
@@ -383,7 +385,7 @@ p_move <- env_dt %>%
   ggplot() + geom_tile(aes(x = long, y = lat, fill = resource)) +
   scale_fill_gradientn(colours = pal) +
   geom_path(data = samp, aes(x = row, y = col)) +
-  ggtitle(label = paste("\u03c1 =", rho))
+  ggtitle(label = paste("rho =", rho))
   # geom_path(data = samp, aes(x = row, y = col))+
   # geom_point(data = samp, aes(x = row, y = col))
 p_move
@@ -478,15 +480,16 @@ hist(angle[,1])
 
 ```{r}
 n <- length(samp$row)-1 # number of steps
-s <- 15                # number of spatial points estimate at each step
+s <- 10                # number of spatial points estimate at each step
 
 # match coordinate with env_rho
+summary(samp)
 samp <- samp-1
 
 # for loop
 max <- max(env_rho)
 min <- min(env_rho)
-delta <- max - min 
+delta <- max - min
 
 # subset environment habitat
 h <- rep(0,n+1)
@@ -502,33 +505,73 @@ esti.l <- as.data.frame(dist) #distance
 colnames(esti.l) <- "dist"
 esti.l$ID <-  paste(samp$row,samp$col, sep = "")[-1]#point ID
 esti.l$h_end <- h[-1]
-esti.l$match <- rep(0,n)
+esti.l$case_control <- rep(1,n)
 esti.l$h_start <- h[-length(h)]
 
-# length match for each step 
-for (i in 1:n){
-  #estimate gamma distribution 
-  k <- 2*(1+(max - esti.l$h_start[i])/delta)
-  q <- 5/(1+(esti.l$h_start[i] - min)/delta)
-
-  length <- round(rgamma(s, shape = k, scale = q))
-  use_length <- dist[i]
+# length match for each step
+k <- 2*(1+(max - esti.l$h_start)/delta)
+q <- 5/(1+(esti.l$h_start - min)/delta)
+avail_matrx <- matrix(round(rgamma(s, shape = k, scale = q), 2),
+                      nrow = n, ncol = s)
+use_length <- dist
   
-  if(sum(length == use_length) > 0){
-    esti.l$match[i] <- 1
-    } else {
-      esti.l$match[i] <- 0
-    }
-}
+# for (i in 1:n){
+#   #estimate gamma distribution
+#   k <- 2*(1+(max - esti.l$h_start[i])/delta)
+#   q <- 5/(1+(esti.l$h_start[i] - min)/delta)
+# 
+#   use_length <- dist[i]
+# 
+#   # if(sum(length == use_length) > 0){
+#   #   esti.l$match[i] <- 1
+#   # } else {
+#   #   esti.l$match[i] <- 0
+#   # }
+# }
 ```
 
 
 ```{r}
-#number of match case
-table(esti.l$match) # balance
+# generating data frame of available steps
+df_avail <- as.data.frame(avail_matrx)
+df_avail$ID <- esti.l$ID
+df_avail <- df_avail %>% pivot_longer(cols = 1:10, values_to = "dist") %>% 
+  select(-name) %>% 
+  left_join(esti.l[,-which(names(esti.l)=="dist")], by = "ID") %>% 
+  mutate(case_control = 0)
+df_step <- bind_rows(df_avail, esti.l) %>% 
+  arrange(ID, desc(case_control))
 ```
 
-```{r}
+Run `clogit` regression
+```{r echo=FALSE}
+#add some variables 
+df_step$ln_dist <- log(df_step$dist) #ln(dist)
+df_step$lh <- df_step$dist*df_step$h_start  # dist * h at previous step
+df_step$ln_lh <- df_step$ln_dist*df_step$h_start #ln(dist) * h at previous step
+
+#remove step where dist = 0
+df_reg <- subset(df_step, dist > 0)
+
+mod1 <- clogit(case_control ~ h_start + dist + strata(ID), data=df_reg)
+
+mod2 <- clogit(case_control ~ h_start + dist + strata(ID) + h_start:dist , data=df_reg)
+
+mod3 <- clogit(case_control ~ h_start + dist + ln_dist + lh + ln_lh + strata(ID), data=df_reg)
+
+mod2
+# stargazer(mod1, type = "latex")
+```
+
+
+
+
+```{r eval=FALSE, include=FALSE}
+# #number of match case
+# table(esti.l$match) # balance
+```
+
+```{r eval=FALSE, include=FALSE}
 #add some variables 
 esti.l$ln_dist <- log(dist) #ln(dist)
 esti.l$lh <- esti.l$dist*esti.l$h_start  # dist * h at previous step
@@ -539,3 +582,5 @@ esti <- subset(esti.l, dist > 0)
 
 clogit(match ~ h_end + dist + ln_dist + lh + ln_lh + strata(ID), data=esti)
 ```
+
+
