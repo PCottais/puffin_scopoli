@@ -458,7 +458,7 @@ for (i in 1:(length(samp$row)-1)){
   dist[i] = sqrt(sum((samp[i+1,]-samp[i,])^2))
 }
 
-dist <- round(dist)
+dist <- round(dist,1)
 
 hist(dist)
 ```
@@ -514,7 +514,7 @@ q <- 5/(1+(esti.l$h_start - min)/delta)
 avail_matrx <- matrix(round(rgamma(s, shape = k, scale = q), 2),
                       nrow = n, ncol = s)
 use_length <- dist
-  
+
 # for (i in 1:n){
 #   #estimate gamma distribution
 #   k <- 2*(1+(max - esti.l$h_start[i])/delta)
