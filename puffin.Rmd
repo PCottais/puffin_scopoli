@@ -27,16 +27,16 @@ library(stargazer)
 
 # Data exploration
 
-```{r import, include=FALSE}
+## Generalisation data set
+
+```{r include=FALSE}
+# generalisation dataset
 load("CALDIO_MPE_2021/generalisation datasets/grid_oceano_2011.Rdata")
 load("CALDIO_MPE_2021/generalisation datasets/grid_oceano_Date_2011.Rdata")
 ```
 
-
-## Data set
-
 ```{r echo=FALSE, results='asis'}
-df.day1 <- grid_oceano[[1]] %>% as_tibble()
+df.day1 <- grid_oceano[[1]]
 tab_extract <- rbind(head(df.day1, 5), tail(df.day1, 5))
 stargazer(tab_extract[, 1:7], type = "latex",
           title = "Extrait du jeu de données du 28 juin 2011*",
@@ -45,12 +45,33 @@ stargazer(tab_extract[, 1:7], type = "latex",
 ```
 
 
-## Data visualisation
+### Data visualisation
+
+```{r message=FALSE, warning=FALSE}
+mediterranean  <- make_bbox(lat = Latitude, lon = Longitude, data = df.day1)
+map.day1 <- get_map(location = mediterranean)
+map.day1 %>% ggmap()
+```
+
+## Training data set
+
+```{r include=FALSE}
+# training dataset 
+load("CALDIO_MPE_2021/training datasets/CALDIO_2011_oceano.Rdata")
+```
+
+```{r echo=FALSE, results='asis'}
+tab_extract <- rbind(head(ALL2011, 5), tail(ALL2011, 5))
+stargazer(tab_extract[, 1:7], type = "latex",
+          title = "Extrait du jeu de données*",
+          notes = "*Dix premières colonnes sur les 25 colonnes du jeu de données",
+          summary = FALSE)
+```
+
+### Data visualisation
 
 ```{r}
-bbox <- 
-map.day1 <- get_openstreetmap()
-df.day1 %>% ggmap() +
-  geom_tile
 ```
+
+
 
