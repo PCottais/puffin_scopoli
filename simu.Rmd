@@ -418,6 +418,7 @@ str(logan)
 ```
 
 ```{r}
+data("infert")
 clogit(case ~ spontaneous + induced + strata(stratum), data=infert)
 # }
 # NOT RUN {
