@@ -49,8 +49,8 @@ stargazer(tab_extract[, 1:7], type = "latex",
 
 ```{r message=FALSE, warning=FALSE}
 mediterranean  <- make_bbox(lat = Latitude, lon = Longitude, data = df.day1)
-map.day1 <- get_map(location = mediterranean)
-map.day1 %>% ggmap()
+map.day1 <- get_map(location = mediterranean) %>% ggmap()
+# map.day1 + geom_tile(data = df.day1, aes(x = Longitude, y = Latitude, fill = dist))
 ```
 
 ## Training data set
@@ -58,6 +58,7 @@ map.day1 %>% ggmap()
 ```{r include=FALSE}
 # training dataset 
 load("CALDIO_MPE_2021/training datasets/CALDIO_2011_oceano.Rdata")
+load("CALDIO_MPE_2021/training datasets/CALDIO_2012_oceano.Rdata")
 ```
 
 ```{r echo=FALSE, results='asis'}
@@ -70,8 +71,53 @@ stargazer(tab_extract[, 1:7], type = "latex",
 
 ### Data visualisation
 
+
+Number of individuals (doesn't match with the "breeding pairs" of Clara's paper)
 ```{r}
+ALL2011 %>% mutate(grep_ID = as.numeric(gsub("[A-Z]", "", ID))) %>% 
+  select(Site, trip_ID, ID, grep_ID) %>% group_by(Site) %>% 
+  summarise(nb_breed = max(grep_ID))
+
+ALL2012 %>% mutate(grep_ID = as.numeric(gsub("[A-Z]", "", ID))) %>% 
+  select(Site, trip_ID, ID, grep_ID) %>% group_by(Site) %>% 
+  summarise(nb_breed = max(grep_ID))
 ```
+
+
+```{r}
+don1 <- ALL2011 %>% 
+  # filter(!is.na(Site)) %>% 
+  amt::select(x = Longitude, y = Latitude, t = Time, id = ID) %>% 
+  amt::filter(id == "ID1R")
+
+# set CRS(EPSG)
+wkt.old <- sf::st_crs(4326)[[2]]
+wkt.new <- sf::st_crs(2154)[[2]]
+
+# sp::CRS(wkt.new)
+
+don1 <- don1 %>% 
+  amt::make_track(.x = x, .y = y, .t = t, crs = wkt.old) %>% 
+  amt::transform_coords(wkt.new)
+
+summarize_sampling_rate(don1)
+
+stps <- don1 %>% 
+  amt::track_resample(rate = minutes(10), tolerance = seconds(60)) %>% 
+  amt::filter_min_n_burst(min_n = 3) %>% 
+  amt::steps_by_burst() %>% 
+  amt::time_of_day(include.crepuscule = FALSE)
+```
+
+
+
+
+
+
+
+
+
+
 
 
 

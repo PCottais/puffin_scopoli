@@ -1,0 +1,92 @@
+---
+title: "AMT package testing"
+author: "Pierre Cottais & An Hoàng"
+date: "03/01/2022"
+output: 
+  pdf_document: 
+    extra_dependencies: ["float"]
+    toc: yes
+    number_sections: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T,
+                      results = "hide")
+```
+
+
+```{r packages, include=FALSE}
+library(tidyverse)
+library(sp)
+library(ggmap)
+library(lubridate)
+library(wesanderson)
+library(survival)
+library(amt)
+library(stargazer)
+library(raster)
+```
+
+```{r}
+dat <- readr::read_csv("Martes pennanti LaPoint New York.csv",
+                show_col_types = FALSE) %>% 
+  filter(!is.na(`location-long`)) %>% 
+  dplyr::select(x = `location-long`, y = `location-lat`,
+         t = `timestamp`, id = `tag-local-identifier`) %>% 
+  filter(id %in% c(1465, 1466, 1072, 1078, 1016, 1469))
+```
+
+```{r}
+dat_1 <- dat %>% filter(id == 1016)  # Ricky T
+# set CRS(EPSG)
+wkt.old <- sf::st_crs(4326)$wkt
+wkt.new <- sf::st_crs(5070)$wkt
+dat_1 <- dat_1 %>% 
+  amt::make_track(.x = x, .y = y, .t = t,
+                  crs = sp::CRS("+init=epsg:4326")) %>%
+  # amt::transform_coords(sp::CRS(wkt.new))
+  # amt::make_track(.x = x, .y = y, .t = t, crs = sp::CRS("+init=epsg:4326")) %>%
+  # amt::transform_coords(sp::CRS("+init=epsg:5070"))
+  amt::make_track(.x = x, .y = y, .t = t)
+
+
+summarize_sampling_rate(dat_1)
+
+stps <- dat_1 %>% 
+  amt::track_resample(rate = minutes(20), tolerance = seconds(300)) %>% 
+  amt::filter_min_n_burst(min_n = 3) %>% 
+  amt::steps_by_burst() %>% 
+  amt::time_of_day(include.crepuscule = FALSE)  # no time of day because no CRS
+
+str(stps)
+
+stps %>% group_by(burst_) %>% 
+  summarise(nb = n()) %>% 
+  filter(nb > 10) %>% 
+  dplyr::select(burst_) %>% 
+  pull()
+
+```
+
+```{r}
+# land_use <- raster("data_land_cover_2018/DATA/U2018_CLC2018_V2020_20u1.tif")
+# wet <- land_use == 90
+# names(wet) <- "wet"
+# plot(land_use, axes=FALSE)
+```
+
+amt "clogit" function usable in pipe workflow
+```{r}
+m1 <- stps %>% 
+  # replace(is.na(.), 0) %>% 
+  amt::random_steps(n_control = 9) %>% 
+  # amt::extract_covariates(wet) %>% 
+  # amt::time_of_day(include.crepuscule = FALSE) %>% 
+  mutate(log_sl = log(sl_)) %>% 
+  amt::fit_issf(case_ ~ log_sl + strata(step_id_))
+```
+
+
+
+
+
