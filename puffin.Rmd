@@ -36,81 +36,150 @@ load("CALDIO_MPE_2021/generalisation datasets/grid_oceano_Date_2011.Rdata")
 ```
 
 ```{r echo=FALSE, results='asis'}
-df.day1 <- grid_oceano[[1]]
-tab_extract <- rbind(head(df.day1, 5), tail(df.day1, 5))
-stargazer(tab_extract[, 1:7], type = "latex",
+grid_day1 <- grid_oceano[[1]]
+tab_extract.grid <- rbind(head(grid_day1, 5), tail(grid_day1, 5))
+stargazer(tab_extract.grid[, 1:7], type = "latex",
           title = "Extrait du jeu de données du 28 juin 2011*",
           notes = "*Six premières colonnes sur les 41 colonnes du jeu de données",
           summary = FALSE)
 ```
 
+Grid giving tempretures and bathymetry data for each one of the `r length(grid_oceano)` days.
 
-### Data visualisation
+
+### Visualisation of the grid
 
 ```{r message=FALSE, warning=FALSE}
-mediterranean  <- make_bbox(lat = Latitude, lon = Longitude, data = df.day1)
+mediterranean  <- make_bbox(lat = Latitude, lon = Longitude, data = grid_day1)
 map.day1 <- get_map(location = mediterranean) %>% ggmap()
-# map.day1 + geom_tile(data = df.day1, aes(x = Longitude, y = Latitude, fill = dist))
+map.day1 + geom_point(data = grid_day1, aes(x = Longitude, y = Latitude), size = 0.5)
 ```
 
-## Training data set
+
+
+## "Training" data set (Puffin's movements)
 
 ```{r include=FALSE}
-# training dataset 
+# training dataset
 load("CALDIO_MPE_2021/training datasets/CALDIO_2011_oceano.Rdata")
 load("CALDIO_MPE_2021/training datasets/CALDIO_2012_oceano.Rdata")
 ```
 
+
+```{r}
+difftime(max(ALL2012$Time), min(ALL2011$Time), units = "days")
+dates_2011 <- ALL2011$Time %>% date() %>% unique()
+dates_2012 <- ALL2012$Time %>% date() %>% unique()
+nb_days <- length(dates_2011) + length(dates_2012)
+paste("Period #1: from", min(dates_2011), "to", max(dates_2011),
+      "(", difftime(max(dates_2011), min(dates_2011)), "days )")
+paste("Period #2: from", min(dates_2012), "to", max(dates_2012),
+      "(", difftime(max(dates_2012), min(dates_2012)), "days )")
+```
+
+
+```{r}
+cpt <- 0
+for (day in 1:95) {
+  if (grid_oceano[[day]]$Date[[1]] %in% dates_2011) {
+    print(unique(grid_oceano[[day]]$Date))
+    cpt <- cpt+1
+  }
+}
+cpt
+```
+
+
+Les données de traçage sont récoltées sur `r nb_days` jours, du `r date(min(ALL2011$Time))` au `r date(max(ALL2012$Time)`.
+
 ```{r echo=FALSE, results='asis'}
-tab_extract <- rbind(head(ALL2011, 5), tail(ALL2011, 5))
-stargazer(tab_extract[, 1:7], type = "latex",
+tab_extract.bird <- rbind(head(ALL2011, 5), tail(ALL2011, 5))
+stargazer(tab_extract.bird[, 1:7], type = "latex",
           title = "Extrait du jeu de données*",
           notes = "*Dix premières colonnes sur les 25 colonnes du jeu de données",
           summary = FALSE)
 ```
 
+```{r}
+bool <- FALSE
+i <- 0
+while (!bool) {
+  i <- i + 1
+  if(grid_oceano[[i]]$Date[[1]] == dates_2011[1]) {
+    bool <- TRUE
+    grid_day1 <- grid_oceano[[i]]
+  }
+}
+
+tab_extract.bird %>% 
+  left_join(grid_day1, by = c("Longitude", "Latitude")) %>% 
+  select(Site, Time, Date, ID, Longitude, Latitude, Bathy.x, Bathy.y)
+
+```
+
+
 ### Data visualisation
 
 
 Number of individuals (doesn't match with the "breeding pairs" of Clara's paper)
-```{r}
+```{r eval=FALSE, include=FALSE}
 ALL2011 %>% mutate(grep_ID = as.numeric(gsub("[A-Z]", "", ID))) %>% 
-  select(Site, trip_ID, ID, grep_ID) %>% group_by(Site) %>% 
+  dplyr::select(Site, trip_ID, ID, grep_ID) %>%
+  group_by(Site) %>% 
   summarise(nb_breed = max(grep_ID))
 
 ALL2012 %>% mutate(grep_ID = as.numeric(gsub("[A-Z]", "", ID))) %>% 
-  select(Site, trip_ID, ID, grep_ID) %>% group_by(Site) %>% 
+  dplyr::select(Site, trip_ID, ID, grep_ID) %>% 
+  group_by(Site) %>% 
   summarise(nb_breed = max(grep_ID))
 ```
 
 
 ```{r}
-don1 <- ALL2011 %>% 
+bird1 <- ALL2011 %>% 
   # filter(!is.na(Site)) %>% 
-  amt::select(x = Longitude, y = Latitude, t = Time, id = ID) %>% 
+  amt::select(x = Longitude, y = Latitude, t = Time, id = ID, bathy = Bathy,
+              temp = SST1, logchla = logCHLA1) %>% 
   amt::filter(id == "ID1R")
 
-# set CRS(EPSG)
-wkt.old <- sf::st_crs(4326)[[2]]
-wkt.new <- sf::st_crs(2154)[[2]]
+track1 <- bird1 %>% 
+  amt::make_track(.x = x, .y = y, .t = t, crs = "epsg:2154")
 
-# sp::CRS(wkt.new)
+summarize_sampling_rate(track1)
 
-don1 <- don1 %>% 
-  amt::make_track(.x = x, .y = y, .t = t, crs = wkt.old) %>% 
-  amt::transform_coords(wkt.new)
-
-summarize_sampling_rate(don1)
-
-stps <- don1 %>% 
+stps <- track1 %>% 
   amt::track_resample(rate = minutes(10), tolerance = seconds(60)) %>% 
   amt::filter_min_n_burst(min_n = 3) %>% 
-  amt::steps_by_burst() %>% 
-  amt::time_of_day(include.crepuscule = FALSE)
+  amt::steps_by_burst()
+  # amt::time_of_day(include.crepuscule = FALSE)
+str(stps)
 ```
 
 
+amt iSS function usable in pipe workflow
+```{r}
+rmd_stps <- stps %>% 
+  # replace(is.na(.), 0) %>% 
+  amt::random_steps(n_control = 9) %>% 
+  # amt::extract_covariates(wet) %>% 
+  # amt::time_of_day(include.crepuscule = FALSE) %>% 
+  mutate(log_sl = log(sl_))
 
+m1 <- rmd_stps %>% amt::fit_issf(
+  case_ ~ sl_ + ta_ + log_sl + strata(step_id_))
+
+glm0 <- glm(data = rmd_stps,
+            case_ ~ sl_ + ta_ + log_sl + direction_p,
+            family = binomial)
+
+
+# mod_select <- RcmdrMisc::stepwise(glm0,direction="forward/backward",criterion="AIC")
+
+
+# summary(m1)
+m1$model
+
+```
 
 
 
