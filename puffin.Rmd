@@ -78,7 +78,7 @@ paste("Period #2: from", min(dates_2012), "to", max(dates_2012),
 ```
 
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 cpt <- 0
 for (day in 1:95) {
   if (grid_oceano[[day]]$Date[[1]] %in% dates_2011) {
@@ -86,11 +86,11 @@ for (day in 1:95) {
     cpt <- cpt+1
   }
 }
-cpt
 ```
 
 
-Les données de traçage sont récoltées sur `r nb_days` jours, du `r date(min(ALL2011$Time))` au `r date(max(ALL2012$Time)`.
+Les données de traçage sont récoltées sur `r nb_days` jours,
+du `r date(min(ALL2011$Time))` au `r date(max(ALL2012$Time))`.
 
 ```{r echo=FALSE, results='asis'}
 tab_extract.bird <- rbind(head(ALL2011, 5), tail(ALL2011, 5))
@@ -100,6 +100,7 @@ stargazer(tab_extract.bird[, 1:7], type = "latex",
           summary = FALSE)
 ```
 
+Get the grid dataframe corresponding to the first observed day
 ```{r}
 bool <- FALSE
 i <- 0
@@ -143,14 +144,15 @@ bird1 <- ALL2011 %>%
   amt::filter(id == "ID1R")
 
 track1 <- bird1 %>% 
-  amt::make_track(.x = x, .y = y, .t = t, crs = "epsg:2154")
+  amt::make_track(.x = x, .y = y, .t = t, crs = "epsg:2154", bathy = bathy,
+                  temp = temp, logchla = logchla, all_cols = FALSE)
 
 summarize_sampling_rate(track1)
 
 stps <- track1 %>% 
   amt::track_resample(rate = minutes(10), tolerance = seconds(60)) %>% 
   amt::filter_min_n_burst(min_n = 3) %>% 
-  amt::steps_by_burst()
+  amt::steps_by_burst(keep_col = 'both')
   # amt::time_of_day(include.crepuscule = FALSE)
 str(stps)
 ```
@@ -158,21 +160,23 @@ str(stps)
 
 amt iSS function usable in pipe workflow
 ```{r}
-rmd_stps <- stps %>% 
+rdm_stps <- stps %>% 
   # replace(is.na(.), 0) %>% 
   amt::random_steps(n_control = 9) %>% 
   # amt::extract_covariates(wet) %>% 
   # amt::time_of_day(include.crepuscule = FALSE) %>% 
-  mutate(log_sl = log(sl_))
-
-m1 <- rmd_stps %>% amt::fit_issf(
-  case_ ~ sl_ + ta_ + log_sl + strata(step_id_))
-
-glm0 <- glm(data = rmd_stps,
-            case_ ~ sl_ + ta_ + log_sl + direction_p,
-            family = binomial)
+  mutate(log_sl = log(sl_)) %>% 
+  select(-c("burst__start", "burst__end"))  # removing these 2 auto created col.
 
 
+rdm_stps
+
+m1 <- rdm_stps %>% amt::fit_issf(
+  case_ ~ sl_ + ta_ + log_sl + bathy_start + bathy_end + strata(step_id_))
+
+# glm0 <- glm(data = rdm_stps,
+#             case_ ~ sl_ + ta_ + log_sl + direction_p,
+#             family = binomial)
 # mod_select <- RcmdrMisc::stepwise(glm0,direction="forward/backward",criterion="AIC")
 
 
