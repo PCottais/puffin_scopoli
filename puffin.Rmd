@@ -18,6 +18,9 @@ knitr::opts_chunk$set(echo = T,
 ```{r packages, include=FALSE}
 library(tidyverse)
 library(ggmap)
+library(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
 library(lubridate)
 library(wesanderson)
 library(survival)
@@ -139,50 +142,238 @@ ALL2012 %>% mutate(grep_ID = as.numeric(gsub("[A-Z]", "", ID))) %>%
 ```{r}
 bird1 <- ALL2011 %>% 
   # filter(!is.na(Site)) %>% 
-  amt::select(x = Longitude, y = Latitude, t = Time, id = ID, bathy = Bathy,
-              temp = SST1, logchla = logCHLA1) %>% 
+  amt::select(x = Longitude, y = Latitude, t = Time, id = ID, Bathy = Bathy,
+              SST1 = SST1) %>% 
   amt::filter(id == "ID1R")
 
 track1 <- bird1 %>% 
-  amt::make_track(.x = x, .y = y, .t = t, crs = "epsg:2154", bathy = bathy,
-                  temp = temp, logchla = logchla, all_cols = FALSE)
+  amt::make_track(.x = x, .y = y, .t = t, crs = "epsg:2154", bathy = Bathy,
+                  sst1 = SST1, all_cols = FALSE)
 
 summarize_sampling_rate(track1)
 
 stps <- track1 %>% 
   amt::track_resample(rate = minutes(10), tolerance = seconds(60)) %>% 
   amt::filter_min_n_burst(min_n = 3) %>% 
-  amt::steps_by_burst(keep_col = 'both')
+  amt::steps_by_burst(keep_col = 'both') %>% 
+  select(-c("burst__start", "burst__end"))  # removing these 2 auto created col.
   # amt::time_of_day(include.crepuscule = FALSE)
 str(stps)
+
 ```
 
 
-amt iSS function usable in pipe workflow
+Get the grid dataframe corresponding to the observed day of stps dataframe
+```{r}
+# bool <- FALSE
+# i <- 0
+# while (!bool) {
+#   i <- i + 1
+#   if(grid_oceano[[i]]$Date[[1]] == date(stps$t1_)[1]) {
+#     bool <- TRUE
+#     grid_day1_bird1 <- grid_oceano[[i]]
+#   }
+# }
+```
+
+closest starting point to existing grid points
+```{r}
+# point1 <- stps[1, c("x2_", "y2_")]
+# names(point1) <- c("Longitude", "Latitude")
+# matrx <- grid_day1_bird1[, c("Longitude", "Latitude")] %>% as.matrix()
+# nearest_pt <- Rfast::dista(point1, matrx, k = 1, index = TRUE)
+# grid_day1_bird1[nearest_pt,]
+# stps[1,]
+```
+
+
+
+
+
+
+
+adding random steps
 ```{r}
 rdm_stps <- stps %>% 
   # replace(is.na(.), 0) %>% 
   amt::random_steps(n_control = 9) %>% 
-  # amt::extract_covariates(wet) %>% 
+  # amt::extract_covariates(wet) %>%
   # amt::time_of_day(include.crepuscule = FALSE) %>% 
-  mutate(log_sl = log(sl_)) %>% 
-  select(-c("burst__start", "burst__end"))  # removing these 2 auto created col.
+  mutate(log_sl = log(sl_),
+        burst_ = as.factor(burst_),
+        step_id_ = as.factor(step_id_))
+
+rdm_stps %>% 
+  group_by(burst_) %>% 
+  summarise(nb_stp = n())
+```
+
+```{r eval=FALSE, include=FALSE}
+# stps_dates <- rdm_stps %>% select(t2_) %>% pull() %>% date()
+# rdm_stps %>% filter(case_ == FALSE) %>% 
+  # mutate(bathy_end = grid_oceano[which(grid_Oceano_Date %in% date(t2_))]
+   
+# for (i in 1:nrow(rdm_stps %>% filter(case_ == FALSE))){
+#   point <- stps[i, c("x2_", "y2_")]
+#   names(point) <- c("Longitude", "Latitude")
+#   grid_day <- grid_oceano[[which(grid_Oceano_Date == date(rdm_stps$t2_[i]))]]
+#   matrx <- grid_day[, c("Longitude", "Latitude")] %>% as.matrix()
+#   nearest_point <- Rfast::dista(point, matrx, k = 1, index = TRUE)
+#   rdm_stps[i, "bathy_end"] <- grid_day[nearest_pt, "Bathy"]
+# }
+# 
+# nearest_pt <- Rfast::dista(point1, matrx, k = 1, index = TRUE)
+# grid_day1_bird1[nearest_pt,]
+# stps[1,]
+
+# points <- rdm_stps %>% filter(case_ == FALSE) %>% 
+#   select(x2_, y2_, t2_, bathy_end) %>% 
+#   rename(Longitude= x2_, Latitude = y2_, Datetime = t2_)
+
+# stps_dates <- unique(date(rdm_stps$t2_))
+# bathy_days <- list(1:length(stps_dates))
+# for (i in 1:length(stps_dates)) {
+#   grid_day <- grid_oceano[[which(grid_Oceano_Date == stps_dates[i])]]
+#   matrx <- grid_day[, c("Longitude", "Latitude")] %>% as.matrix()
+#   points <- rdm_stps %>% 
+#     filter(case_ == FALSE, date(t2_) == stps_dates[i]) %>% 
+#     select(x2_, y2_,) %>% 
+#     rename(Longitude = x2_, Latitude = y2_)
+#   nearest_id <- Rfast::dista(points, matrx, k = 1, index = TRUE)
+#   points$Bathy <- grid_day[nearest_id, "Bathy"]
+# }
+
+# get_habitat <- function(point){
+#   long <- point$x2_
+#   lat <- point$y2_
+#   date <- date(point$t2_)
+#   # get the grid data corresponding to the date
+#   grid_day <- grid_oceano[[which(grid_Oceano_Date == date)]]
+#   matrx <- grid_day[, c("Longitude", "Latitude")] %>% as.matrix()
+#   
+#   # match the bathy data to random steps bathy_end variable
+#   point <- data.frame(long, lat)
+#   nearest_id <- Rfast::dista(point, matrx, k = 1, index = TRUE)
+#   return(grid_day[nearest_id,])
+# }
+# 
+# points <- rdm_stps %>% 
+#   filter(case_ == FALSE) %>% 
+#   select(x2_, y2_, t2_)
+# 
+# res <- get_habitat(points[1:10,])
 
 
-rdm_stps
+# get_habitat <- function(steps){
+#   # df_points <- steps %>% select(x2_, y2_)
+#   dates_stps <- unique(date(steps$t2_))
+#   
+#   # get the grids data corresponding to the dates and merge them
+#   for (i in 1:length(dates_stps)){
+#     grid_day <- grid_oceano[[which(grid_Oceano_Date == dates_stps[i])]]
+#     matrx <- grid_day[, c("Longitude", "Latitude")] %>% as.matrix()
+#   
+#     # match the grid data to input steps
+#     nearest_id <- Rfast::dista(steps[,c("x2_", "y2_")], matrx, k = 1, index = TRUE)
+#     
+#     grid_day[nearest_id,]
+#   }
+#   
+#   
+#   return(grid_days[,covariate])
+# }
+# 
+# get_habitat(rdm_stps)
 
-m1 <- rdm_stps %>% amt::fit_issf(
-  case_ ~ sl_ + ta_ + log_sl + bathy_start + bathy_end + strata(step_id_))
 
-# glm0 <- glm(data = rdm_stps,
-#             case_ ~ sl_ + ta_ + log_sl + direction_p,
-#             family = binomial)
-# mod_select <- RcmdrMisc::stepwise(glm0,direction="forward/backward",criterion="AIC")
+get_habitat_cov <- function(steps){
+  for (i in 1:nrow(steps)){
+    dates <- date(steps$t2_)
+    if (steps[i, "case_"]==FALSE){
+      grid_day <- grid_oceano[[which(grid_Oceano_Date == dates[i])]]
+      matrx <- grid_day[, c("Longitude", "Latitude")] %>% as.matrix()
+      nearest_id <- Rfast::dista(steps[i,c("x2_", "y2_")], matrx, k = 1, index = TRUE)
+      # if (!is.na(grid_day[nearest_id, "Bathy"])){
+        steps[i, "bathy_end"] <- grid_day[nearest_id, "Bathy"]
+      # }
+      # else{
+      #   NA_Bathy <- NA_Bathy + 1
+      # }
+      # if (!is.na(grid_day[nearest_id, "SST1"])){
+        steps[i, "temp_end"] <- grid_day[nearest_id, "SST1"]
+      # }
+      # else{
+      #   NA_SST1 <- NA_SST1 + 1
+      # }
+    }
+  }
+  # return(list(NA_Bathy, NA_SST1, NA_logCHLA1))
+  return(steps)
+}
 
 
-# summary(m1)
+
+```
+
+
+```{r}
+get_habitat <- function(step, mutate_var = "bathy_end", covariate = "Bathy", output){
+  # get 1 habitat covariate for a random ENDGING point (default Bathy)
+  grid_day <- grid_oceano[[which(grid_Oceano_Date == date(step$t2_))]]
+  matrx <- grid_day[, c("Longitude", "Latitude")] %>% as.matrix()
+  nearest_id <- Rfast::dista(step[,c("x2_", "y2_")], matrx, k = 1, index = TRUE)
+  step[, mutate_var] <- grid_day[nearest_id, covariate]
+  return(step)
+}
+```
+
+
+```{r eval=FALSE, include=FALSE}
+# world %>% select(admin, income_grp, wikipedia, economy, geometry) %>% print(n=5)
+# world$geometry[1]
+# sf::st_crs(world)
+# sea_medit <- ne_countries(scale = "medium", returnclass = "sf") %>% 
+#   filter(name == "France") %>% 
+#   st_crop(xmin = 4.5, xmax = 7, ymin = 39, ymax = 44)
+# sea_medit %>% ggplot() + 
+#   geom_sf() + 
+#   geom_point(data = grid_day1_bird1[nearest_pt,],
+#              aes(x = Longitude, y = Latitude),
+#              size = 0.5) +
+#   geom_point(data = stps[1,],
+#              aes(x = x1_, y = y2_),
+#              size = 0.8,
+#              color = "red") + 
+#   geom_point(data = grid_day1_bird1[nearest_pt[1],],
+#              aes(x = Longitude, y = Latitude),
+#              size = 0.5,
+#              color = "orange")
+```
+
+
+
+```{r}
+for (i in 1:nrow(rdm_stps)){
+  if (rdm_stps[i, "case_"] == FALSE){
+    rdm_stps[i,] <- get_habitat(rdm_stps[i,],
+                                mutate_var = "bathy_end", covariate = "Bathy")
+    rdm_stps[i,] <- get_habitat(rdm_stps[i,],
+                                mutate_var = "temp_end", covariate = "SST1")
+    rdm_stps[i,] <- get_habitat(rdm_stps[i,],
+                                mutate_var = "logchla_end", covariate = "logCHLA1")
+  }
+}
+
+rdm_stps[rdm_stps$case_==FALSE,]
+
+```
+
+amt::iSS function to run survival::clogit function usable in pipe workflow
+```{r}
+m1 <- rdm_stps %>% 
+  amt::fit_issf(case_ ~ sl_ + ta_ + log_sl + strata(step_id_) +
+                  + bathy_end + temp_end + logchla_end)  # covariates related to the habitat
 m1$model
-
 ```
 
 
