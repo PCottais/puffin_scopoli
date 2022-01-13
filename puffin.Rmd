@@ -143,12 +143,12 @@ ALL2012 %>% mutate(grep_ID = as.numeric(gsub("[A-Z]", "", ID))) %>%
 bird1 <- ALL2011 %>% 
   # filter(!is.na(Site)) %>% 
   amt::select(x = Longitude, y = Latitude, t = Time, id = ID, Bathy = Bathy,
-              SST1 = SST1) %>% 
+              SST1 = SST1, logCHLA1 = logCHLA1) %>% 
   amt::filter(id == "ID1R")
 
 track1 <- bird1 %>% 
   amt::make_track(.x = x, .y = y, .t = t, crs = "epsg:2154", bathy = Bathy,
-                  sst1 = SST1, all_cols = FALSE)
+                  sst1 = SST1, logchla1 = logCHLA1, all_cols = FALSE)
 
 summarize_sampling_rate(track1)
 
@@ -158,8 +158,16 @@ stps <- track1 %>%
   amt::steps_by_burst(keep_col = 'both') %>% 
   select(-c("burst__start", "burst__end"))  # removing these 2 auto created col.
   # amt::time_of_day(include.crepuscule = FALSE)
-str(stps)
+# str(stps)
+```
 
+
+```{r echo=FALSE, results='asis'}
+tab_extract.step <- rbind(head(stps, 5), tail(stps, 5))
+stargazer(tab_extract.step, type = "latex",
+          title = "Extrait des données de mouvements générées*",
+          notes = "*observed steps",
+          summary = FALSE)
 ```
 
 
@@ -187,11 +195,6 @@ closest starting point to existing grid points
 ```
 
 
-
-
-
-
-
 adding random steps
 ```{r}
 rdm_stps <- stps %>% 
@@ -203,9 +206,18 @@ rdm_stps <- stps %>%
         burst_ = as.factor(burst_),
         step_id_ = as.factor(step_id_))
 
-rdm_stps %>% 
-  group_by(burst_) %>% 
-  summarise(nb_stp = n())
+# rdm_stps %>% 
+#   group_by(burst_) %>% 
+#   summarise(nb_stp = n())
+```
+
+
+```{r echo=FALSE, results='asis'}
+tab_extract.rdm_step <- rbind(head(rdm_stps, 5), tail(rdm_stps, 5))
+stargazer(tab_extract.rdm_step, type = "latex",
+          title = "Extrait des données de mouvements aléatoires générées*",
+          notes = "*observed and random steps",
+          summary = FALSE, digit.separator = ".", digits.extra = 2)
 ```
 
 
@@ -251,22 +263,29 @@ for (i in 1:nrow(rdm_stps)){
     rdm_stps[i,] <- get_habitat(rdm_stps[i,],
                                 mutate_var = "bathy_end", covariate = "Bathy")
     rdm_stps[i,] <- get_habitat(rdm_stps[i,],
-                                mutate_var = "temp_end", covariate = "SST1")
+                                mutate_var = "sst1_end", covariate = "SST1")
     rdm_stps[i,] <- get_habitat(rdm_stps[i,],
-                                mutate_var = "logchla_end", covariate = "logCHLA1")
+                                mutate_var = "logchla1_end", covariate = "logCHLA1")
   }
 }
 
-rdm_stps[rdm_stps$case_==FALSE,]
+# rdm_stps[rdm_stps$case_==FALSE,]
 
 ```
 
 amt::iSS function to run survival::clogit function usable in pipe workflow
-```{r}
+```{r echo=FALSE, results='asis'}
 m1 <- rdm_stps %>% 
   amt::fit_issf(case_ ~ sl_ + ta_ + log_sl + strata(step_id_) +
-                  + bathy_end + temp_end + logchla_end)  # covariates related to the habitat
-m1$model
+                  + bathy_end + sst1_end + logchla1_end)  # covariates related to the habitat
+# m1$model
+```
+
+
+```{r echo=FALSE, results='asis'}
+stargazer(m1$model, type = "latex",
+          title = "Résumé du modèle de régression logistique conditionnel*",
+          summary = FALSE)
 ```
 
 
