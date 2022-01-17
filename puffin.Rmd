@@ -121,20 +121,40 @@ tab_extract.bird %>%
 
 ```
 
+descriptive statistics
+```{r}
+# ALL2011 %>% group_by(ID) %>% 
+#   summarise(nlevels(trip_ID)) %>% 
+#   table()
+# nlevels(ALL2011$ID)
+```
+
 
 ### Data visualisation
 
 
 Number of individuals (doesn't match with the "breeding pairs" of Clara's paper)
+
+```{r}
+ALL2011 %>% select(ID) %>% unique() %>% nrow()
+```
+
+Number of trips per individual
+```{r}
+ALL2011 %>% group_by(ID) %>% summarise()
+```
+
+
+
 ```{r eval=FALSE, include=FALSE}
-ALL2011 %>% mutate(grep_ID = as.numeric(gsub("[A-Z]", "", ID))) %>% 
+ALL2011 %>% mutate(grep_ID = as.numeric(gsub("[A-Z]", "", ID))) %>%
   dplyr::select(Site, trip_ID, ID, grep_ID) %>%
-  group_by(Site) %>% 
+  group_by(Site) %>%
   summarise(nb_breed = max(grep_ID))
 
-ALL2012 %>% mutate(grep_ID = as.numeric(gsub("[A-Z]", "", ID))) %>% 
-  dplyr::select(Site, trip_ID, ID, grep_ID) %>% 
-  group_by(Site) %>% 
+ALL2012 %>% mutate(grep_ID = as.numeric(gsub("[A-Z]", "", ID))) %>%
+  dplyr::select(Site, trip_ID, ID, grep_ID) %>%
+  group_by(Site) %>%
   summarise(nb_breed = max(grep_ID))
 ```
 
@@ -142,15 +162,36 @@ ALL2012 %>% mutate(grep_ID = as.numeric(gsub("[A-Z]", "", ID))) %>%
 ```{r}
 bird1 <- ALL2011 %>% 
   # filter(!is.na(Site)) %>% 
-  amt::select(x = Longitude, y = Latitude, t = Time, id = ID, Bathy = Bathy,
-              SST1 = SST1, logCHLA1 = logCHLA1) %>% 
-  amt::filter(id == "ID1R")
+  select(x = Longitude, y = Latitude, t = Time, id = ID, Bathy = Bathy,
+              SST1 = SST1, logCHLA1 = logCHLA1, trip_ID) %>% 
+  filter(id == "ID2R")
 
+trip1 <- bird1 %>% filter(trip_ID == "ID2R_1")
+
+
+mediterranean  <- make_bbox(lat = y, lon = x, data = bird1)
+map2011 <- get_map(location = mediterranean) %>% ggmap()
+map2011 + geom_path(data = bird1, aes(x, y), size = 0.2) +
+  geom_point(data = bird1[1,], aes(x, y), size = 1, color = "green") +
+  geom_point(data = bird1[nrow(bird1),], aes(x, y), size = 1, color = "red")
+
+map2011 + geom_path(data = trip1, aes(x, y), size = 0.2) +
+  geom_point(data = trip1[1,], aes(x, y), size = 1, color = "green") +
+  geom_point(data = trip1[nrow(trip1),], aes(x, y), size = 1, color = "red")
+```
+
+
+```{r}
 track1 <- bird1 %>% 
   amt::make_track(.x = x, .y = y, .t = t, crs = "epsg:2154", bathy = Bathy,
-                  sst1 = SST1, logchla1 = logCHLA1, all_cols = FALSE)
+                  sst1 = SST1, logchla1 = logCHLA1, tripID = trip_ID, all_cols = FALSE)
 
 summarize_sampling_rate(track1)
+
+# time_1 <- track1$t_
+# time_2 <- track1$t_
+# time_diff <- time_2[2:length(time_2)]-time_1[1:(length(time_2)-1)]
+# plot(time_diff)
 
 stps <- track1 %>% 
   amt::track_resample(rate = minutes(10), tolerance = seconds(60)) %>% 
@@ -222,7 +263,7 @@ stargazer(tab_extract.rdm_step, type = "latex",
 
 
 ```{r}
-get_habitat <- function(step, mutate_var = "bathy_end", covariate = "Bathy", output){
+get_habitat <- function(step, mutate_var = "bathy_end", covariate = "Bathy"){
   # get 1 habitat covariate for a random ENDGING point (default Bathy)
   grid_day <- grid_oceano[[which(grid_Oceano_Date == date(step$t2_))]]
   matrx <- grid_day[, c("Longitude", "Latitude")] %>% as.matrix()
@@ -258,6 +299,7 @@ get_habitat <- function(step, mutate_var = "bathy_end", covariate = "Bathy", out
 
 
 ```{r}
+start <- Sys.time()
 for (i in 1:nrow(rdm_stps)){
   if (rdm_stps[i, "case_"] == FALSE){
     rdm_stps[i,] <- get_habitat(rdm_stps[i,],
@@ -268,10 +310,20 @@ for (i in 1:nrow(rdm_stps)){
                                 mutate_var = "logchla1_end", covariate = "logCHLA1")
   }
 }
-
+end <- Sys.time()
+print(end-start)
 # rdm_stps[rdm_stps$case_==FALSE,]
 
 ```
+
+
+```{r}
+mediterranean  <- make_bbox(lat = y2_, lon = x2_, data = rdm_stps)
+map2011 <- get_map(location = mediterranean) %>% ggmap()
+map2011 + geom_point(data = rdm_stps[rdm_stps$case_==FALSE,], aes(x2_, y2_), size = 0.3, color = "purple") +
+  geom_path(data = rdm_stps[rdm_stps$case_==TRUE,], aes(x2_, y2_), size = 0.5, color = "yellow")
+```
+
 
 amt::iSS function to run survival::clogit function usable in pipe workflow
 ```{r echo=FALSE, results='asis'}
@@ -291,6 +343,15 @@ stargazer(m1$model, type = "latex",
 
 
 
+## Many trips
+
+```{r}
+bird1_trips <- bird1 %>% amt::nest(data = c(x, y, t, id, Bathy, SST1, logCHLA1)) %>% 
+  mutate(trk = lapply(data, function(d){
+    amt::make_track(d, x, y , t, crs = "epsg:2154", bathy = Bathy,
+                  sst1 = SST1, logchla1 = logCHLA1)
+  }))
+```
 
 
 
