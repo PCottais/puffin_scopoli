@@ -1,0 +1,69 @@
+---
+title: "Integrated step selection analysis (iSSA)"
+author: "Pierre Cottais & An Hoàng"
+date: "25/01/2022"
+output: 
+  pdf_document: 
+    extra_dependencies: ["float"]
+    toc: yes
+    number_sections: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T,
+                      results = "hide")
+```
+
+```{r packages}
+library(tidyverse)
+library(lubridate)
+library(amt)
+library(stargazer)
+```
+
+
+
+# Data processing
+```{r}
+# oceanography dataset
+load("CALDIO_MPE_2021/generalisation datasets/grid_oceano_2011.Rdata")
+load("CALDIO_MPE_2021/generalisation datasets/grid_oceano_Date_2011.Rdata")
+
+# Scopoli's sheawater datasets
+load("CALDIO_MPE_2021/training datasets/CALDIO_2011_oceano.Rdata")
+load("CALDIO_MPE_2021/training datasets/CALDIO_2012_oceano.Rdata")
+
+# load functions
+source("functions.R")
+```
+
+
+```{r}
+# initialisation
+models <- list()
+
+# running the analysis
+start <- Sys.time()
+for (site in unique(ALL2011$Site)){
+  models[[site]] <- iSSA(colony = site, year = 2011)
+}
+end <- Sys.time()
+print(end-start)
+
+
+```
+
+
+```{r}
+# compare the 4 models
+models$Riou$model
+models$Lavezzi$model
+models$Porquerolles$model
+models$Giraglia$model
+```
+
+```{r}
+cor(ALL2011$SST28, ALL2011$logCHLA28)
+
+```
+
