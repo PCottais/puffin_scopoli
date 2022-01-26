@@ -3,6 +3,7 @@ get_habitat <- function(steps, var = c("Bathy",'SST28','logCHLA28')){
   # get habitat covariates for random ENDING points
   for (day in days){
     grid_day <- grid_oceano[[which(grid_Oceano_Date == day)]]
+    grid_day <- grid_day %>% filter(!is.na(SST1), !is.na(Bathy))  # "sea" cells
     matrx <- grid_day[, c("Longitude", "Latitude")] %>% as.matrix()
     filtered_stps <- steps[date(steps$t2_)==day,]
     nearest_id <- Rfast::dista(filtered_stps[,c("x2_", "y2_")],
@@ -13,7 +14,8 @@ get_habitat <- function(steps, var = c("Bathy",'SST28','logCHLA28')){
 }
 
 
-iSSA <- function(colony = "Giraglia", year = 2011){
+iSSA_steps <- function(colony, year = 2011, rmv_near_coast = FALSE,
+                 covariates = c("Bathy",'SST28','logCHLA28')){
   if(year == 2011){
     data <- ALL2011
   }else{
@@ -23,8 +25,15 @@ iSSA <- function(colony = "Giraglia", year = 2011){
   # select all birds from a colony in 2011 (Scopoli's babies)
   df <- data %>% 
     filter(Site == colony) %>% 
-    select(x = Longitude, y = Latitude, t = Time, id = ID,
-           Bathy, SST28, logCHLA28)  # covariates
+    select(x = Longitude, y = Latitude, t = Time, id = ID)
+  df[, covariates] <- NA  # covariates
+  
+  # # removing points too close to the coast
+  # if(rmv_near_coast){
+  #   # get those points
+  #   
+  #   df <- df %>% filter()
+  # }
   
   # tracks
   trks <- df %>% 
@@ -51,12 +60,11 @@ iSSA <- function(colony = "Giraglia", year = 2011){
            step_id_ = as.factor(step_id_))
   
   # get covariates of available steps from oceano grid
-  stps[stps$case_==FALSE,] <- stps %>% 
-    filter(case_ == FALSE) %>% 
-    get_habitat()
+  stps <- stps %>% 
+    # filter(case_ == FALSE) %>% 
+    get_habitat(var = covariates)
   
-  # iSSA conditional regression model
-  model <- stps %>% amt::fit_issf(case_ ~ sl_ + ta_ + log_sl + strata(step_id_) +
-                                    Bathy + SST28 + logCHLA28)
-  return(model)
+  # # iSSA conditional regression model
+  # model <- stps %>% amt::fit_issf(case_ ~ sl_ + ta_ + log_sl + strata(step_id_))
+  return(stps)
 }

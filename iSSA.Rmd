@@ -38,6 +38,26 @@ source("functions.R")
 ```
 
 
+
+# Steps of Giraglia colony
+```{r}
+# observed + available steps
+start <- Sys.time()
+stps <- iSSA_steps(colony = "Giraglia", year = 2011,
+             # covariates = colnames(grid_oceano[[1]][,8:41]))
+             covariates = c("Bathy", "GBathy", "SST28", "GSST28", "Var_SST28",
+                            "SLA1", "VEL7", "logCHLA28", "GCHLA28"))
+end <- Sys.time()
+print(end-start)
+
+# iSSA conditional regression model
+mod_G <- stps %>% amt::fit_issf(case_ ~ sl_ + ta_ + log_sl + Bathy + GBathy +
+                                  SST28 + GSST28 + Var_SST28 + SLA1 + VEL7 +
+                                  logCHLA28 + GCHLA28 + strata(step_id_))
+mod_G$model
+```
+
+
 ```{r}
 # initialisation
 models <- list()
@@ -45,7 +65,10 @@ models <- list()
 # running the analysis
 start <- Sys.time()
 for (site in unique(ALL2011$Site)){
-  models[[site]] <- iSSA(colony = site, year = 2011)
+  steps <- iSSA_steps(colony = site, year = 2011,
+                      covariates = c("Bathy", "GBathy", "SST28", "GSST28", "Var_SST28",
+                                     "SLA1", "VEL7", "logCHLA28", "GCHLA28"))
+  models[[site]] <- stps %>% amt::fit_issf(case_ ~ sl_ + ta_ + log_sl + strata(step_id_))
 }
 end <- Sys.time()
 print(end-start)
