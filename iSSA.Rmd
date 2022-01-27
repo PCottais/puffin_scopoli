@@ -16,6 +16,8 @@ knitr::opts_chunk$set(echo = T,
 
 ```{r packages}
 library(tidyverse)
+library(ggmap)
+library(sf)
 library(lubridate)
 library(amt)
 library(stargazer)
@@ -37,6 +39,37 @@ load("CALDIO_MPE_2021/training datasets/CALDIO_2012_oceano.Rdata")
 source("functions.R")
 ```
 
+
+# Work with Shoreline / Coastline shapefiles
+```{r eval=FALSE, include=FALSE}
+# europe <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf",
+#                                      continent = "Europe")
+# 
+# mediterra <- europe %>% 
+#   filter(admin %in% c("France", "Italy", "Spain")) %>%  
+#   st_crop(xmin = 3, xmax = 11, ymin = 40, ymax = 45)
+# 
+# mediterra %>% 
+#   # st_transform(crs = 2154) %>% 
+#   ggplot() + geom_sf() + 
+#   geom_point(data = grd[!is.na(grd$Bathy) & !is.na(grd$SST1),],
+#              aes(x = Longitude, y = Latitude), size = 0.2)
+# 
+# df_union_cast <- mediterra$geometry %>% 
+#   st_cast("MULTIPOLYGON")
+# 
+# plot(df_union_cast)
+```
+
+# Remove birds near the coast boundary
+```{r eval=FALSE, include=FALSE}
+# grd <- grid_oceano[[1]]
+# 
+# mediterranean  <- make_bbox(lat = Latitude, lon = Longitude, data = grd)
+# map <- get_map(location = mediterranean) %>% ggmap()
+# # df_grid <- grd %>% filter(!is.na(SST1), !is.na(Bathy))
+# map + geom_point(data = grd, aes(x = Longitude, y = Latitude), size = 0.5)
+```
 
 
 # Steps of Giraglia colony
