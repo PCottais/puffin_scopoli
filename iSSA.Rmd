@@ -9,10 +9,12 @@ output:
     number_sections: yes
 ---
 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = T,
                       results = "hide")
 ```
+
 
 ```{r packages}
 library(tidyverse)
@@ -22,7 +24,6 @@ library(lubridate)
 library(amt)
 library(stargazer)
 ```
-
 
 
 # Data processing
@@ -71,7 +72,6 @@ Remove birds near the coast boundary
 # map + geom_point(data = grd, aes(x = Longitude, y = Latitude), size = 0.5)
 ```
 
-
 Steps of Giraglia colony
 ```{r eval=FALSE, include=FALSE}
 # observed + available steps
@@ -91,7 +91,7 @@ mod_G$model
 ```
 
 # Build steps (observed and available) and the 4 models
-```{r}
+```{r eval=FALSE, include=FALSE}
 # initialisation
 steps <- list()
 models <- list()
@@ -116,9 +116,14 @@ for (site in unique(ALL2011$Site)){
 }
 end <- Sys.time()
 print(end-start)
-
-
 ```
+
+
+# Loading models and steps generated before
+```{r}
+load("issa_env.RData")
+```
+
 
 
 # compare the 4 models (i.e. colonies) with utilisation distribution
