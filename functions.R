@@ -42,8 +42,8 @@ iSSA_steps <- function(colony, year = 2011, rmv_near_coast = FALSE,
     amt::steps_by_burst(keep_col = 'end')
   
   # deal with duplicate burst_id
-  stps %>% as_tibble() %>% group_by(burst_) %>%
-    summarize(nb_ind = n_distinct(id))
+  # stps %>% as_tibble() %>% group_by(burst_) %>%
+  #   summarize(nb_ind = n_distinct(id))
   # 1st idea: modify `burst_` values so it is different for each bird
   stps <- stps %>%
     mutate(burst_ = paste(id, burst_, sep = ''))

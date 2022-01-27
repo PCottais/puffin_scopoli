@@ -16,8 +16,8 @@ knitr::opts_chunk$set(echo = T,
 
 ```{r packages}
 library(tidyverse)
-library(ggmap)
-library(sf)
+# library(ggmap)
+# library(sf)
 library(lubridate)
 library(amt)
 library(stargazer)
@@ -40,7 +40,7 @@ source("functions.R")
 ```
 
 
-# Work with Shoreline / Coastline shapefiles
+Work with Shoreline / Coastline shapefiles
 ```{r eval=FALSE, include=FALSE}
 # europe <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf",
 #                                      continent = "Europe")
@@ -61,7 +61,7 @@ source("functions.R")
 # plot(df_union_cast)
 ```
 
-# Remove birds near the coast boundary
+Remove birds near the coast boundary
 ```{r eval=FALSE, include=FALSE}
 # grd <- grid_oceano[[1]]
 # 
@@ -72,8 +72,8 @@ source("functions.R")
 ```
 
 
-# Steps of Giraglia colony
-```{r}
+Steps of Giraglia colony
+```{r eval=FALSE, include=FALSE}
 # observed + available steps
 start <- Sys.time()
 stps <- iSSA_steps(colony = "Giraglia", year = 2011,
@@ -90,18 +90,29 @@ mod_G <- stps %>% amt::fit_issf(case_ ~ sl_ + ta_ + log_sl + Bathy + GBathy +
 mod_G$model
 ```
 
-
+# Build steps (observed and available) and the 4 models
 ```{r}
 # initialisation
+steps <- list()
 models <- list()
 
 # running the analysis
 start <- Sys.time()
 for (site in unique(ALL2011$Site)){
-  steps <- iSSA_steps(colony = site, year = 2011,
+  print(site)
+  stps <- iSSA_steps(colony = site, year = 2011,
                       covariates = c("Bathy", "GBathy", "SST28", "GSST28", "Var_SST28",
                                      "SLA1", "VEL7", "logCHLA28", "GCHLA28"))
-  models[[site]] <- stps %>% amt::fit_issf(case_ ~ sl_ + ta_ + log_sl + strata(step_id_))
+  # # standardizing covariates
+  # stps <- scale(stps[, 9:17])
+  
+  # saving steps dataframe
+  steps[[site]] <- stps
+  
+  # saving models
+  models[[site]] <- stps %>% amt::fit_issf(case_ ~ sl_ + ta_ + log_sl + Bathy + GBathy +
+                                  SST28 + GSST28 + Var_SST28 + SLA1 + VEL7 +
+                                  logCHLA28 + GCHLA28 + strata(step_id_))
 }
 end <- Sys.time()
 print(end-start)
@@ -110,16 +121,48 @@ print(end-start)
 ```
 
 
+# compare the 4 models (i.e. colonies) with utilisation distribution
+
+Oceanographic grid (date: 28/06/2011)
 ```{r}
-# compare the 4 models
-models$Riou$model
-models$Lavezzi$model
-models$Porquerolles$model
-models$Giraglia$model
+grd <- grid_oceano[[1]]
+```
+
+
+```{r}
+print("Riou")
+modR <- models$Riou$model ; modR
 ```
 
 ```{r}
-cor(ALL2011$SST28, ALL2011$logCHLA28)
+grid_modR <- modR
+# update(modR, formula=drop.terms(modR$terms, 2, keep.response=TRUE)  )
+# grd$RiouUD <- stats::predict(grid_modR, newdata = grd, type = "response")
 
 ```
+
+
+```{r}
+print("Lavezzi")
+modL <- models$Lavezzi$model ; modL
+```
+
+There are too many steps removed because missing (. Let's investigate why.
+```{r}
+
+```
+
+
+
+```{r}
+print("Porquerolles")
+modP <- models$Porquerolles$model ; modP
+```
+
+
+```{r}
+print("Giraglia")
+modG <- models$Giraglia$model ; modG
+```
+
 
