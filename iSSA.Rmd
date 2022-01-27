@@ -18,7 +18,7 @@ knitr::opts_chunk$set(echo = T,
 
 ```{r packages}
 library(tidyverse)
-# library(ggmap)
+library(ggmap)
 # library(sf)
 library(lubridate)
 library(amt)
@@ -63,13 +63,12 @@ Work with Shoreline / Coastline shapefiles
 ```
 
 Remove birds near the coast boundary
-```{r eval=FALSE, include=FALSE}
-# grd <- grid_oceano[[1]]
-# 
-# mediterranean  <- make_bbox(lat = Latitude, lon = Longitude, data = grd)
-# map <- get_map(location = mediterranean) %>% ggmap()
-# # df_grid <- grd %>% filter(!is.na(SST1), !is.na(Bathy))
-# map + geom_point(data = grd, aes(x = Longitude, y = Latitude), size = 0.5)
+```{r message=FALSE, warning=FALSE}
+grd <- grid_oceano[[1]]
+mediterranean  <- make_bbox(lat = Latitude, lon = Longitude, data = grd)
+map <- get_map(location = mediterranean) %>% ggmap()
+df_grid <- grd %>% filter(!is.na(SST1), !is.na(Bathy))
+map + geom_point(data = df_grid, aes(x = Longitude, y = Latitude), size = 0.1)
 ```
 
 Steps of Giraglia colony
@@ -135,39 +134,89 @@ grd <- grid_oceano[[1]]
 
 
 ```{r}
-print("Riou")
-modR <- models$Riou$model ; modR
+colony <- "Riou"
+print(colony)
+modR <- models$Riou$model
 ```
 
-```{r}
-grid_modR <- modR
-# update(modR, formula=drop.terms(modR$terms, 2, keep.response=TRUE)  )
-# grd$RiouUD <- stats::predict(grid_modR, newdata = grd, type = "response")
+```{r echo=FALSE, results='asis'}
+stargazer(modR, type = "latex",
+          title = paste("Résumé du modèle de régression logistique conditionnel pour la colonie", colony),
+          summary = FALSE)
+```
 
+```{r message=FALSE, warning=FALSE}
+df <- ALL2011 %>% 
+  filter(Site == colony)
+mediterranean  <- make_bbox(lat = Latitude, lon = Longitude, data = df)
+map <- get_map(location = mediterranean) %>% ggmap()
+# df_grid <- grd %>% filter(!is.na(SST1), !is.na(Bathy))
+map + geom_point(data = df, aes(x = Longitude, y = Latitude), size = 0.1)
 ```
 
 
 ```{r}
-print("Lavezzi")
-modL <- models$Lavezzi$model ; modL
+colony <- "Lavezzi"
+print(colony)
+modL <- models$Lavezzi$model
+```
+
+```{r echo=FALSE, results='asis'}
+stargazer(modL, type = "latex",
+          title = paste("Résumé du modèle de régression logistique conditionnel pour la colonie", colony),
+          summary = FALSE)
 ```
 
 There are too many steps removed because missing (. Let's investigate why.
-```{r}
-
-```
-
-
-
-```{r}
-print("Porquerolles")
-modP <- models$Porquerolles$model ; modP
+```{r message=FALSE, warning=FALSE}
+df <- ALL2011 %>% 
+  filter(Site == colony)
+mediterranean  <- make_bbox(lat = Latitude, lon = Longitude, data = df)
+map <- get_map(location = mediterranean) %>% ggmap()
+# df_grid <- grd %>% filter(!is.na(SST1), !is.na(Bathy))
+map + geom_point(data = df, aes(x = Longitude, y = Latitude), size = 0.1)
 ```
 
 
 ```{r}
-print("Giraglia")
-modG <- models$Giraglia$model ; modG
+colony <- "Porquerolles"
+print(colony)
+modP <- models$Porquerolles$model
+```
+
+```{r echo=FALSE, results='asis'}
+stargazer(modP, type = "latex",
+          title = paste("Résumé du modèle de régression logistique conditionnel pour la colonie", colony),
+          summary = FALSE)
+```
+
+```{r message=FALSE, warning=FALSE}
+df <- ALL2011 %>% 
+  filter(Site == colony)
+mediterranean  <- make_bbox(lat = Latitude, lon = Longitude, data = df)
+map <- get_map(location = mediterranean) %>% ggmap()
+# df_grid <- grd %>% filter(!is.na(SST1), !is.na(Bathy))
+map + geom_point(data = df, aes(x = Longitude, y = Latitude), size = 0.1)
 ```
 
 
+```{r}
+colony <- "Giraglia"
+print(colony)
+modG <- models$Giraglia$model
+```
+
+```{r echo=FALSE, results='asis'}
+stargazer(modG, type = "latex",
+          title = paste("Résumé du modèle de régression logistique conditionnel pour la colonie", colony),
+          summary = FALSE)
+```
+
+```{r message=FALSE, warning=FALSE}
+df <- ALL2011 %>% 
+  filter(Site == colony)
+mediterranean  <- make_bbox(lat = Latitude, lon = Longitude, data = df)
+map <- get_map(location = mediterranean) %>% ggmap()
+# df_grid <- grd %>% filter(!is.na(SST1), !is.na(Bathy))
+map + geom_point(data = df, aes(x = Longitude, y = Latitude), size = 0.1)
+```
