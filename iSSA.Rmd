@@ -30,11 +30,25 @@ library(stargazer)
 ```{r}
 # oceanography dataset
 load("CALDIO_MPE_2021/generalisation datasets/grid_oceano_2011.Rdata")
+grid_oceano_2011 <- grid_oceano
+load("CALDIO_MPE_2021/generalisation datasets/grid_oceano_2012.Rdata")
+grid_oceano_2012 <- grid_oceano
+remove(grid_oceano)
+
+# related dates
 load("CALDIO_MPE_2021/generalisation datasets/grid_oceano_Date_2011.Rdata")
+grid_Oceano_Date_2011 <- grid_Oceano_Date
+load("CALDIO_MPE_2021/generalisation datasets/grid_oceano_Date_2012.Rdata")
+grid_Oceano_Date_2012 <- grid_Oceano_Date
+remove(grid_Oceano_Date)
 
 # Scopoli's sheawater datasets
 load("CALDIO_MPE_2021/training datasets/CALDIO_2011_oceano.Rdata")
 load("CALDIO_MPE_2021/training datasets/CALDIO_2012_oceano.Rdata")
+ALL <- bind_rows(ALL2011, ALL2012)
+ALL <- ALL %>% mutate(Year = as.factor(year(ymd_hms(Time))))
+# remove(ALL2011, ALL2012)
+
 
 # load functions
 source("functions.R")
@@ -62,7 +76,7 @@ Work with Shoreline / Coastline shapefiles
 # plot(df_union_cast)
 ```
 
-Remove birds near the coast boundary
+Remove cells near the coast boundary
 ```{r message=FALSE, warning=FALSE}
 grd <- grid_oceano[[1]]
 mediterranean  <- make_bbox(lat = Latitude, lon = Longitude, data = grd)
@@ -71,152 +85,456 @@ df_grid <- grd %>% filter(!is.na(SST1), !is.na(Bathy))
 map + geom_point(data = df_grid, aes(x = Longitude, y = Latitude), size = 0.1)
 ```
 
-Steps of Giraglia colony
-```{r eval=FALSE, include=FALSE}
-# observed + available steps
-start <- Sys.time()
-stps <- iSSA_steps(colony = "Giraglia", year = 2011,
-             # covariates = colnames(grid_oceano[[1]][,8:41]))
-             covariates = c("Bathy", "GBathy", "SST28", "GSST28", "Var_SST28",
-                            "SLA1", "VEL7", "logCHLA28", "GCHLA28"))
-end <- Sys.time()
-print(end-start)
 
-# iSSA conditional regression model
-mod_G <- stps %>% amt::fit_issf(case_ ~ sl_ + ta_ + log_sl + Bathy + GBathy +
-                                  SST28 + GSST28 + Var_SST28 + SLA1 + VEL7 +
-                                  logCHLA28 + GCHLA28 + strata(step_id_))
-mod_G$model
+Visualise colonies
+```{r eval=FALSE, include=FALSE}
+colony_colors <- c("#FC8D58", "#D72F28", "#1A7838", "#69ADDB")
+png("figures/map_sites.png", width=7, height=4.2, units="in", res=200)
+mediterranean  <- make_bbox(lat = Latitude, lon = Longitude, data = ALL2011)
+map <- get_stamenmap(bbox = mediterranean, maptype = "toner-lite", zoom = 7) %>% ggmap()
+map + geom_point(data = ALL2011, aes(x = Longitude, y = Latitude, color = Site), size = 0.1) +
+  scale_color_manual(values = colony_colors) +
+  xlab("Longitude") + ylab("Latitude") +
+  labs(title = "Répartition des individus selon le site de leur colonie en 2011")+
+  theme(legend.position = "bottom",
+        legend.title = element_blank()) +
+  guides(colour = guide_legend(override.aes = list(size=3)))
+dev.off()
 ```
 
-# Build steps (observed and available) and the 4 models
+```{r eval=FALSE, include=FALSE}
+# colony_colors <- c("#FC8D58", "#D72F28", "#1A7838", "#69ADDB")
+# png("figures/bar_site.png", width=8, height=3, units="in", res=200)
+# ALL2011 %>% group_by(Site) %>% 
+#   summarise(nb_ind = n_distinct(ID)) %>% 
+#   ggplot() + geom_col(aes(x = Site, y = nb_ind), width = 0.5,
+#                       fill = colony_colors) +
+#   ylab(element_blank()) + xlab(element_blank()) +
+#   labs(title = "Répartition des individus selon le site de leur colonie en 2011",
+#        caption = "Nombre total d'individus : 94") +
+#   theme(plot.title = element_text(size = 16, hjust = 0.5, vjust = 2.7),
+#         plot.caption = element_text(size = 10, face = "italic", hjust = 1),
+#         legend.position = "bottom",
+#         legend.title = element_blank(),
+#         axis.text.x = element_text(vjust = 2, size = 14, color = colony_colors),
+#         axis.text.y = element_text(size = 10),
+#         panel.background = element_rect(fill = "white"),
+#         panel.grid = element_line(color = 'grey', linetype = 'dotted'),
+#         panel.grid.major.x = element_blank(),
+#         axis.ticks.x = element_blank())
+# dev.off()
+```
+
+
+```{r}
+colony_colors <- c("#FC8D58", "#D72F28", "#1A7838", "#69ADDB")
+png("figures/bar_site.png", width=8, height=3, units="in", res=200)
+ALL %>% 
+  # mutate(ID = paste(ID, Year, sep = '')) %>% 
+  group_by(Year, Site) %>% 
+  summarise(nb_ind = n_distinct(ID)) %>% 
+  ggplot() + aes(x = Site, y = nb_ind, fill = Year) + 
+  geom_bar(stat = "identity", position = "dodge", alpha = 0.8, width = 0.5) +
+  ylab(element_blank()) + xlab(element_blank()) +
+  labs(title = "Répartition des individus selon le site de leur colonie",
+       caption = "Nombre total d'individus par année : 94") +
+  theme(plot.title = element_text(size = 16, hjust = 0.5, vjust = 2.7),
+        plot.caption = element_text(size = 10, face = "italic", hjust = 1),
+        legend.position = "right",
+        legend.title = element_blank(),
+        axis.text.x = element_text(vjust = 2, size = 14, color = colony_colors),
+        axis.text.y = element_text(size = 10),
+        panel.background = element_rect(fill = "white"),
+        panel.grid = element_line(color = 'grey', linetype = 'dotted'),
+        panel.grid.major.x = element_blank(),
+        axis.ticks.x = element_blank())
+dev.off()
+```
+
+
+# Build steps (observed and available) and the 4 models in 2011
 ```{r eval=FALSE, include=FALSE}
 # initialisation
 steps <- list()
 models <- list()
+# env_issa <- list()
+```
 
-# running the analysis
+## Running iSSA for shearwaters (including some covariates NA)
+```{r eval=FALSE, include=FALSE}
+# running the analysis for 2011 data
 start <- Sys.time()
-for (site in unique(ALL2011$Site)){
+for (site in unique(ALL$Site)){
   print(site)
-  stps <- iSSA_steps(colony = site, year = 2011,
-                      covariates = c("Bathy", "GBathy", "SST28", "GSST28", "Var_SST28",
-                                     "SLA1", "VEL7", "logCHLA28", "GCHLA28"))
-  # # standardizing covariates
-  # stps <- scale(stps[, 9:17])
+  stps <- iSSA_steps(colony = site,
+                     covariates = c("Bathy","SST28", "GSST28","Var_SST28",
+                                    "SLA1", "VEL7", "logCHLA28", "GCHLA28"))
+
+  # # removing observed + available steps if NA
+  # na.ind <- unique(which(is.na(stps), arr.ind = TRUE)[,1])
+  # na.step_id <- stps[na.ind, "step_id_"] %>% unique() %>% pull()
+  # stps <- stps %>% 
+  #   filter(!step_id_%in%na.step_id)
   
   # saving steps dataframe
   steps[[site]] <- stps
-  
+
   # saving models
-  models[[site]] <- stps %>% amt::fit_issf(case_ ~ sl_ + ta_ + log_sl + Bathy + GBathy +
+  models[[site]] <- stps %>% amt::fit_issf(case_ ~ sl_ + ta_ + log_sl + Bathy +
                                   SST28 + GSST28 + Var_SST28 + SLA1 + VEL7 +
                                   logCHLA28 + GCHLA28 + strata(step_id_))
 }
 end <- Sys.time()
 print(end-start)
+
+save(models, steps, file = "issa_env.RData")
+```
+
+## Running iSSA for 2011 shearwaters (witout oceanographics NA steps)
+```{r eval=FALSE, include=FALSE}
+# # running the analysis for 2011 data
+# start <- Sys.time()
+# for (site in unique(ALL$Site)){
+#   print(site)
+#   stps <- iSSA_steps(colony = site, year = 2011,
+#                       covariates = c("Bathy", "GBathy", "SST28", "GSST28", "Var_SST28",
+#                                      "SLA1", "VEL7", "logCHLA28", "GCHLA28"))
+# 
+#   # removing observed + available steps if NA
+#   na.ind <- unique(which(is.na(stps), arr.ind = TRUE)[,1])
+#   na.step_id <- stps[na.ind, "step_id_"] %>% unique() %>% pull()
+#   stps <- stps %>%
+#     filter(!step_id_%in%na.step_id)
+#   
+#   # saving steps dataframe
+#   steps[[site]] <- stps
+# 
+#   # saving models
+#   models[[site]] <- stps %>% amt::fit_issf(case_ ~ sl_ + ta_ + log_sl + Bathy + GBathy +
+#                                   SST28 + GSST28 + Var_SST28 + SLA1 + VEL7 +
+#                                   logCHLA28 + GCHLA28 + strata(step_id_))
+# }
+# end <- Sys.time()
+# print(end-start)
+# 
+# env_issa[["clean"]] <- list(steps, models)
+```
+
+<!-- ## Running iSSA for 2012 shearwaters -->
+```{r eval=FALSE, include=FALSE}
+# # running the analysis for 2012 data
+# start <- Sys.time()
+# for (site in unique(ALL2012$Site)){
+#   print(site)
+#   stps <- iSSA_steps(colony = site, year = 2012,
+#                       covariates = c("Bathy", "GBathy", "SST28", "GSST28", "Var_SST28",
+#                                      "SLA1", "VEL7", "logCHLA28", "GCHLA28"))
+#   
+#   # removing observed + available steps if NA
+#   na.ind <- unique(which(is.na(stps), arr.ind = TRUE)[,1])
+#   na.step_id <- stps[na.ind, "step_id_"] %>% unique() %>% pull()
+#   stps <- stps %>% 
+#     filter(!step_id_%in%na.step_id)
+#   
+#   # saving steps dataframe
+#   steps[[site]] <- stps
+#   
+#   # saving models
+#   models[[site]] <- stps %>% amt::fit_issf(case_ ~ sl_ + ta_ + log_sl + Bathy + GBathy +
+#                                   SST28 + GSST28 + Var_SST28 + SLA1 + VEL7 +
+#                                   logCHLA28 + GCHLA28 + strata(step_id_))
+# }
+# end <- Sys.time()
+# print(end-start)
+# 
+# env_year[[2012]] <- list(steps, models)
 ```
 
 
-# Loading models and steps generated before
+## Load models and steps generated before
 ```{r}
 load("issa_env.RData")
 ```
 
 
 
-# compare the 4 models (i.e. colonies) with utilisation distribution
+# compare the 4 models (i.e. sites) with NA values against 4 models without NA
 
 Oceanographic grid (date: 28/06/2011)
 ```{r}
 grd <- grid_oceano[[1]]
+steps_miss <- env_issa$missing[[1]]
+models_miss <- env_issa$missing[[2]]
+
+steps_clean <- env_issa$clean[[1]]
+models_clean <- env_issa$clean[[2]]
 ```
+
+compare Lavezzi birds'positions to remaining observed steps
+```{r}
+obs_stps_miss_L <- steps_miss$Lavezzi %>% filter(case_ == TRUE)
+
+mediterranean  <- make_bbox(lat = y2_, lon = x2_, data = obs_stps_miss_L)
+map_steps <- get_map(location = mediterranean) %>% ggmap()
+map_steps + geom_point(data = obs_stps_miss_L, aes(x = x2_, y = y2_), size = 0.1)
+
+mediterranean  <- make_bbox(lat = Latitude, lon = Longitude,
+                            data = ALL2012[ALL2012$Site=="Lavezzi",])
+map_coord <- get_map(location = mediterranean) %>% ggmap()
+map_coord + geom_point(data = ALL2012[ALL2012$Site=="Lavezzi",],
+                       aes(x = Longitude, y = Latitude), size = 0.1)
+```
+
+
+step lengths distributions for Lavezzi and Gariglia colonies
+```{r}
+res.PCA <- FactoMineR::PCA(steps_clean$Riou[,9:17])
+cor(steps_clean$Riou[,9:17])
+```
+
 
 
 ```{r}
 colony <- "Riou"
 print(colony)
-modR <- models$Riou$model
+modR <- models$Riou$model ; modR
 ```
 
 ```{r echo=FALSE, results='asis'}
-stargazer(modR, type = "latex",
-          title = paste("Résumé du modèle de régression logistique conditionnel pour la colonie", colony),
-          summary = FALSE)
+# stargazer(modR, type = "latex",
+#           title = paste("Résumé du modèle de régression logistique conditionnel pour la colonie", colony))
 ```
 
 ```{r message=FALSE, warning=FALSE}
-df <- ALL2011 %>% 
-  filter(Site == colony)
-mediterranean  <- make_bbox(lat = Latitude, lon = Longitude, data = df)
+obs_stps <- steps$Riou %>% filter(case_ == TRUE)
+rdm_stps <- steps$Riou %>% filter(case_ == FALSE)
+
+mediterranean  <- make_bbox(lat = y2_, lon = x2_, data = steps$Riou)
 map <- get_map(location = mediterranean) %>% ggmap()
-# df_grid <- grd %>% filter(!is.na(SST1), !is.na(Bathy))
-map + geom_point(data = df, aes(x = Longitude, y = Latitude), size = 0.1)
+
+map + geom_point(data = rdm_stps, aes(x = x2_, y = y2_),
+             size = 0.1, color = "red", alpha = 0.1) +
+  geom_point(data = obs_stps, aes(x = x2_, y = y2_), size = 0.1) +
+  ggtitle(colony)
 ```
 
 
 ```{r}
 colony <- "Lavezzi"
 print(colony)
-modL <- models$Lavezzi$model
+modL <- models$Lavezzi$model ; modL
 ```
 
 ```{r echo=FALSE, results='asis'}
-stargazer(modL, type = "latex",
-          title = paste("Résumé du modèle de régression logistique conditionnel pour la colonie", colony),
-          summary = FALSE)
+# stargazer(modL, type = "latex", title = paste(
+#   "Résumé du modèle de régression logistique conditionnel pour la colonie",
+#   colony), summary = FALSE)
 ```
 
-There are too many steps removed because missing (. Let's investigate why.
+There are too many steps removed because missing. Let's investigate why.
 ```{r message=FALSE, warning=FALSE}
-df <- ALL2011 %>% 
-  filter(Site == colony)
-mediterranean  <- make_bbox(lat = Latitude, lon = Longitude, data = df)
+obs_stps <- steps$Lavezzi %>% filter(case_ == TRUE)
+rdm_stps <- steps$Lavezzi %>% filter(case_ == FALSE)
+
+mediterranean  <- make_bbox(lat = y2_, lon = x2_, data = steps$Lavezzi)
 map <- get_map(location = mediterranean) %>% ggmap()
-# df_grid <- grd %>% filter(!is.na(SST1), !is.na(Bathy))
-map + geom_point(data = df, aes(x = Longitude, y = Latitude), size = 0.1)
+
+map + geom_point(data = rdm_stps, aes(x = x2_, y = y2_),
+             size = 0.1, color = "red", alpha = 0.1) +
+  geom_point(data = obs_stps, aes(x = x2_, y = y2_), size = 0.1) +
+  ggtitle(colony)
+```
+
+
+
+```{r}
+mediterranean  <- make_bbox(lat = y2_, lon = x2_, data = obs_stps)
+map <- get_map(location = mediterranean) %>% ggmap()
+
+map + geom_path(data = obs_stps, aes(x = x2_, y = y2_), size = 0.1) +
+  ggtitle(colony)
 ```
 
 
 ```{r}
 colony <- "Porquerolles"
 print(colony)
-modP <- models$Porquerolles$model
+modP <- models$Porquerolles$model ; modP
 ```
 
 ```{r echo=FALSE, results='asis'}
-stargazer(modP, type = "latex",
-          title = paste("Résumé du modèle de régression logistique conditionnel pour la colonie", colony),
-          summary = FALSE)
+# stargazer(modP, type = "latex", title = paste(
+#   "Résumé du modèle de régression logistique conditionnel pour la colonie",
+#   colony), summary = FALSE)
 ```
 
 ```{r message=FALSE, warning=FALSE}
-df <- ALL2011 %>% 
-  filter(Site == colony)
-mediterranean  <- make_bbox(lat = Latitude, lon = Longitude, data = df)
+obs_stps <- steps$Porquerolles %>% filter(case_ == TRUE)
+rdm_stps <- steps$Porquerolles %>% filter(case_ == FALSE)
+
+mediterranean  <- make_bbox(lat = y2_, lon = x2_, data = steps$Porquerolles)
 map <- get_map(location = mediterranean) %>% ggmap()
-# df_grid <- grd %>% filter(!is.na(SST1), !is.na(Bathy))
-map + geom_point(data = df, aes(x = Longitude, y = Latitude), size = 0.1)
+
+map + geom_point(data = rdm_stps, aes(x = x2_, y = y2_),
+             size = 0.1, color = "red", alpha = 0.1) +
+  geom_path(data = obs_stps, aes(x = x2_, y = y2_), size = 0.1) +
+  ggtitle(colony)
 ```
 
 
 ```{r}
 colony <- "Giraglia"
 print(colony)
-modG <- models$Giraglia$model
+modG <- models$Giraglia$model ; modG
 ```
 
 ```{r echo=FALSE, results='asis'}
-stargazer(modG, type = "latex",
-          title = paste("Résumé du modèle de régression logistique conditionnel pour la colonie", colony),
-          summary = FALSE)
+# stargazer(modG, type = "latex", title = paste(
+#   "Résumé du modèle de régression logistique conditionnel pour la colonie",
+#   colony), summary = FALSE)
 ```
 
 ```{r message=FALSE, warning=FALSE}
-df <- ALL2011 %>% 
-  filter(Site == colony)
-mediterranean  <- make_bbox(lat = Latitude, lon = Longitude, data = df)
+obs_stps <- steps$Giraglia %>% filter(case_ == TRUE)
+rdm_stps <- steps$Giraglia %>% filter(case_ == FALSE)
+
+mediterranean  <- make_bbox(lat = y2_, lon = x2_, data = steps$Giraglia)
 map <- get_map(location = mediterranean) %>% ggmap()
-# df_grid <- grd %>% filter(!is.na(SST1), !is.na(Bathy))
-map + geom_point(data = df, aes(x = Longitude, y = Latitude), size = 0.1)
+
+map + geom_point(data = rdm_stps, aes(x = x2_, y = y2_),
+             size = 0.1, color = "red", alpha = 0.1) +
+  geom_point(data = obs_stps, aes(x = x2_, y = y2_), size = 0.1) +
+  ggtitle(colony)
 ```
+
+```{r}
+mediterranean  <- make_bbox(lat = y2_, lon = x2_, data = obs_stps)
+map <- get_map(location = mediterranean) %>% ggmap()
+
+df <- obs_stps %>% 
+  dplyr::arrange(t2_)
+map + geom_path(data = obs_stps, aes(x = x2_, y = y2_), size = 0.1) +
+  ggtitle(colony)
+```
+
+
+
+# Utilization distribution
+
+## Create a grid from the centroid coordinates
+
+```{r}
+# Create an sf object from a data frame of more than two columns
+x <- grd[,c("Longitude", "Latitude","Bathy", "GBathy", "SST28", "GSST28", "Var_SST28",
+                                     "SLA1", "VEL7", "logCHLA28", "GCHLA28")]
+poly <- eSDM::pts2poly_centroids(x, 0.0675/2, crs = 2154, agr = "constant")
+
+mediterranean  <- make_bbox(lat = Latitude, lon = Longitude, data = grd)
+map <- get_map(location = mediterranean) %>% ggmap()
+
+# medit <- c(left = min(grd$Longitude),
+#            bottom = min(grd$Latitude),
+#            right = max(grd$Longitude),
+#            top = max(grd$Latitude))
+# map <- get_stamenmap(medit, zoom = 7, "terrain-background") %>% ggmap()
+
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+ggplot(poly) + 
+  geom_sf(aes(fill = Bathy), color = NA)
+```
+
+
+```{r}
+# bSquare <- function(x, a) {
+#   a <- sqrt(a)/2
+#   return( sf::st_buffer(x, dist = a, nQuadSegs=1, 
+#                         endCapStyle = "SQUARE") )
+# }
+# 
+# library(sf)
+# xy <- st_as_sf(data.frame(x = c(1,3,6,7),
+#                y = c(3,2,7,8), z = c(38,23,12,12),
+#                area = c(32,23,45,67)),
+#                coords = c("x", "y"), 
+#                agr = "constant")
+# 
+# xym <- st_as_sf(data.frame(grd[,c("Longitude", "Latitude", "Cell", "Bathy")]),
+#                 coords = c("Longitude", "Latitude"),
+#                 agr = "constant")
+# 
+# sb.var <- bSquare(xym, xym$Cell)
+# 
+# 
+# mediterranean  <- make_bbox(lat = Latitude, lon = Longitude, data = grd)
+# map <- get_map(location = mediterranean) %>% ggmap()
+# 
+# map + geom_point(st_geometry(sb.var))
+# 
+# plot(st_geometry(sb.var))
+# plot(st_geometry(xym), pch=20, add=TRUE)
+```
+
+
+```{r}
+# X <- c(1,3,6,7)
+# Y <- c(3,2,7,8)
+# Z <- c(38,23,12,12)
+# Area <- c(32,23,45,67)
+# 
+# library(sp)
+# A <- cbind(X,Y,Z,Area)
+# B <- SpatialPoints(A)
+# 
+# library(rgeos)      ## for gBuffer()
+# library(raster)     ## for bind()
+# 
+# ww <- sqrt(B$Area)/2  ## Widths of buffers needed to produce desired areas    
+# 
+# pp <- list()
+# for(i in seq_along(B)) {
+#     pp[i] <- gBuffer(B[i], width=ww[i], quadsegs=1, capStyle="SQUARE")
+# }
+# PP <- do.call(bind, pp)
+# 
+# ## Check that it worked
+# plot(PP)
+# plot(B, add=TRUE)
+# text(B, labels=1:4, adj=c(-1,0), col="red")
+```
+
+
+```{r}
+# ### 1 - CREATE SPATIAL POLYGON ###
+# library(sp)
+# # arrange coordinates of future spatial polygon into a 2-column matrix
+# xym <- grd[, c("Longitude", "Latitude")] %>% as.matrix()
+# 
+# # create Polygon
+# p <- Polygon(xym)
+# 
+# # wrap Polygon into Polygons object
+# ps <- Polygons(list(p), 1)
+# 
+# # wrap Polygons object into SpatialPolygons object
+# sps <- SpatialPolygons(list(ps))
+# 
+# # set CRS of polygon (Lambert 93)
+# proj4string(sps) <- CRS("+init=epsg:2154")
+# 
+# data <- data.frame(f = 99.9)
+# spdf <- SpatialPolygonsDataFrame(sps, data)
+# spdf
+# 
+# 
+# ### 2 - GENERATE REGULAR SAMPLING POINTS ###
+# library(raster)
+# 
+# r <- rasterFromXYZ(coordinates(spdf))
+# r[] <- 1:ncell(r) # add some values
+# 
+# # check the results are correct
+# plot(r)
+# points(ptsreg, pch = ".", col = "black")
+```
+

@@ -1,11 +1,15 @@
 get_habitat <- function(steps, var = c("Bathy",'SST28','logCHLA28')){
   days <- unique(date(steps$t2_))
   # get habitat covariates for random ENDING points
-  for (day in days){
-    grid_day <- grid_oceano[[which(grid_Oceano_Date == day)]]
+  for (day in as.character(days)){
+    if (substr(day, 1, 4) == "2011"){
+      grid_day <- grid_oceano_2011[[which(grid_Oceano_Date_2011 == day)]]
+    }else{
+      grid_day <- grid_oceano_2012[[which(grid_Oceano_Date_2012 == day)]]
+    }
     
-    # get oceanographic values of nearest "sea" cells
-    grid_day <- grid_day %>% filter(!is.na(SST1), !is.na(Bathy))
+    # # get oceanographic values of nearest "sea" cells
+    # grid_day <- grid_day %>% filter(!is.na(SST1), !is.na(Bathy))
     
     matrx <- grid_day[, c("Longitude", "Latitude")] %>% as.matrix()
     filtered_stps <- steps[date(steps$t2_)==day,]
@@ -17,16 +21,11 @@ get_habitat <- function(steps, var = c("Bathy",'SST28','logCHLA28')){
 }
 
 
-iSSA_steps <- function(colony, year = 2011, rmv_near_coast = FALSE,
+iSSA_steps <- function(colony, rmv_near_coast = FALSE,
                  covariates = c("Bathy",'SST28','logCHLA28')){
-  if(year == 2011){
-    data <- ALL2011
-  }else{
-    dataa <- ALL2012
-  }
   
   # select all birds from a colony in 2011 (Scopoli's babies)
-  df <- data %>% 
+  df <- ALL %>% 
     filter(Site == colony) %>% 
     select(x = Longitude, y = Latitude, t = Time, id = ID)
   df[, covariates] <- NA  # covariates
@@ -37,7 +36,7 @@ iSSA_steps <- function(colony, year = 2011, rmv_near_coast = FALSE,
   
   # observed steps
   stps <- trks %>% 
-    amt::track_resample(rate = minutes(5), tolerance = seconds(60)) %>% 
+    amt::track_resample(rate = minutes(3), tolerance = seconds(60)) %>% 
     amt::filter_min_n_burst(min_n = 3) %>% 
     amt::steps_by_burst(keep_col = 'end')
   
@@ -50,7 +49,7 @@ iSSA_steps <- function(colony, year = 2011, rmv_near_coast = FALSE,
   
   # observed + random steps
   stps <- stps %>% 
-    amt::random_steps(n_control = 9) %>% 
+    amt::random_steps(n_control = 3) %>% 
     mutate(log_sl = log(sl_),
            burst_ = as.factor(burst_),
            step_id_ = as.factor(step_id_))
