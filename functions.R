@@ -21,7 +21,7 @@ get_habitat <- function(steps, var = c("Bathy",'SST28','logCHLA28')){
 }
 
 
-iSSA_steps <- function(colony, rmv_near_coast = FALSE,
+iSSA_steps <- function(colony, n_control = 3,
                  covariates = c("Bathy",'SST28','logCHLA28')){
   
   # select all birds from a colony in 2011 (Scopoli's babies)
@@ -49,7 +49,7 @@ iSSA_steps <- function(colony, rmv_near_coast = FALSE,
   
   # observed + random steps
   stps <- stps %>% 
-    amt::random_steps(n_control = 3) %>% 
+    amt::random_steps(n_control = n_control) %>% 
     mutate(log_sl = log(sl_),
            burst_ = as.factor(burst_),
            step_id_ = as.factor(step_id_))
